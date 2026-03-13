@@ -35,8 +35,22 @@ jobs:
           node-version: 20
           cache: pnpm
 
+      - name: Sync version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "
+            const fs = require('fs');
+            const dirs = ['packages/core', 'packages/channels', 'packages/gateway', 'packages/cli', 'packages/ui', 'packages/desktop'];
+            for (const dir of dirs) {
+              const path = dir + '/package.json';
+              const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+            }
+          "
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build all packages
         run: pnpm run build
@@ -108,8 +122,24 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
+      - name: Sync version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Setting version to $VERSION"
+          node -e "
+            const fs = require('fs');
+            const dirs = ['packages/core', 'packages/channels', 'packages/gateway', 'packages/cli'];
+            for (const dir of dirs) {
+              const path = dir + '/package.json';
+              const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+              console.log('  ' + pkg.name + ' → ' + '$VERSION');
+            }
+          "
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build packages
         run: |
