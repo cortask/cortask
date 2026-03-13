@@ -29,8 +29,10 @@ import { configureHelp } from "./terminal/help.js";
 import { setupCommand } from "./commands/setup.js";
 import { statusCommand } from "./commands/status.js";
 import { dashboardCommand } from "./commands/dashboard.js";
+import { createRequire } from "node:module";
 
-const VERSION = "0.1.0";
+const require = createRequire(import.meta.url);
+const VERSION: string = require("../package.json").version;
 
 const program = new Command();
 

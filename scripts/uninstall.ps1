@@ -1,5 +1,5 @@
 # Cortask Uninstall Script for Windows
-# Usage: iwr -useb https://cortask.dev/uninstall.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/cortask/cortask/main/scripts/uninstall.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
@@ -31,7 +31,7 @@ Write-Host ""
 # Unlink CLI
 Write-Host "→ Unlinking CLI..." -NoNewline
 Set-Location $installDir
-pnpm -F @cortask/cli unlink --global 2>&1 | Out-Null
+pnpm -F cortask unlink --global 2>&1 | Out-Null
 Write-Host " ✓" -ForegroundColor Green
 
 # Remove installation directory

@@ -1,0 +1,12 @@
+services:
+  cortask:
+    build: .
+    image: ghcr.io/cortask/cortask:latest
+    ports:
+      - "3777:3777"
+    volumes:
+      - cortask-data:/data
+    restart: unless-stopped
+
+volumes:
+  cortask-data:

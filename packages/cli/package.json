@@ -1,7 +1,15 @@
 {
-  "name": "@cortask/cli",
+  "name": "cortask",
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
+  "description": "Local AI agent with skills, workspaces, and cron",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cortask/cortask.git",
+    "directory": "packages/cli"
+  },
+  "files": ["dist"],
   "bin": {
     "cortask": "dist/index.js"
   },

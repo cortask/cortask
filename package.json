@@ -1,5 +1,5 @@
 {
-  "name": "cortask",
+  "name": "@cortask/monorepo",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -20,7 +20,7 @@
     "dev:ui": "pnpm -F @cortask/ui dev",
     "rebuild:sqlite": "node-gyp rebuild --directory=node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3",
     "build:deps": "pnpm -F @cortask/core build && pnpm -F @cortask/channels build",
-    "build": "pnpm -F @cortask/core build && pnpm -F @cortask/channels build && pnpm -F @cortask/gateway build && pnpm -F @cortask/ui build && pnpm -F @cortask/cli build && pnpm -F @cortask/desktop build",
+    "build": "pnpm -F @cortask/core build && pnpm -F @cortask/channels build && pnpm -F @cortask/gateway build && pnpm -F @cortask/ui build && pnpm -F cortask build && pnpm -F @cortask/desktop build",
     "build:core": "pnpm -F @cortask/core build",
     "build:gateway": "pnpm -F @cortask/gateway build",
     "build:ui": "pnpm -F @cortask/ui build",

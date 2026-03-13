@@ -1,0 +1,12 @@
+node_modules
+.git
+_references
+packages/desktop/release
+*.db
+*.enc.json
+master.key
+.env
+.env.*
+.DS_Store
+Thumbs.db
+*.log
