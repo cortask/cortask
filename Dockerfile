@@ -13,13 +13,22 @@ COPY packages/channels/package.json packages/channels/
 COPY packages/gateway/package.json packages/gateway/
 COPY packages/ui/package.json packages/ui/
 COPY packages/cli/package.json packages/cli/
+COPY packages/desktop/package.json packages/desktop/
 
 RUN pnpm install --frozen-lockfile
 
-COPY packages/ packages/
+COPY packages/core/ packages/core/
+COPY packages/channels/ packages/channels/
+COPY packages/gateway/ packages/gateway/
+COPY packages/ui/ packages/ui/
+COPY packages/cli/ packages/cli/
 COPY skills/ skills/
 
-RUN pnpm run build
+RUN pnpm -F @cortask/core build && \
+    pnpm -F @cortask/channels build && \
+    pnpm -F @cortask/gateway build && \
+    pnpm -F @cortask/ui build && \
+    pnpm -F cortask build
 
 # Stage 2: Runtime
 FROM node:20-bookworm-slim
@@ -38,6 +47,7 @@ COPY --from=build /app/packages/channels/package.json packages/channels/
 COPY --from=build /app/packages/gateway/package.json packages/gateway/
 COPY --from=build /app/packages/ui/package.json packages/ui/
 COPY --from=build /app/packages/cli/package.json packages/cli/
+COPY --from=build /app/packages/desktop/package.json packages/desktop/
 
 RUN pnpm install --frozen-lockfile --prod
 

@@ -94,7 +94,6 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    environment: npm
 
     steps:
       - uses: actions/checkout@v4
@@ -112,11 +111,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build all packages
-        run: pnpm run build
+      - name: Build packages
+        run: |
+          pnpm -F @cortask/core build
+          pnpm -F @cortask/channels build
+          pnpm -F @cortask/gateway build
+          pnpm -F cortask build
 
       - name: Publish to npm
-        if: env.NODE_AUTH_TOKEN != ''
         run: pnpm -r publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
