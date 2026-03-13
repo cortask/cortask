@@ -116,7 +116,10 @@ echo -e " ${GREEN}✓${NC}"
 
 # Build packages
 echo -ne "→ Building packages..."
-pnpm build --silent &> /dev/null
+pnpm run build:deps --silent &> /dev/null && \
+pnpm -F @cortask/gateway build --silent &> /dev/null && \
+pnpm -F @cortask/ui build --silent &> /dev/null && \
+pnpm -F cortask build --silent &> /dev/null
 if [ $? -ne 0 ]; then
     echo -e " ${RED}✗${NC}"
     echo ""

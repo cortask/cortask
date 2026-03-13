@@ -110,7 +110,10 @@ Write-Host " ✓" -ForegroundColor Green
 
 # Build packages
 Write-Host "→ Building packages..." -NoNewline
-pnpm build --silent 2>&1 | Out-Null
+pnpm run build:deps --silent 2>&1 | Out-Null
+pnpm -F @cortask/gateway build --silent 2>&1 | Out-Null
+pnpm -F @cortask/ui build --silent 2>&1 | Out-Null
+pnpm -F cortask build --silent 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Host " ✗" -ForegroundColor Red
     Write-Host ""
