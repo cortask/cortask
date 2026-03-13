@@ -1,5 +1,5 @@
 # Cortask Installation Script for Windows
-# Usage: iwr -useb https://cortask.dev/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/cortask/cortask/main/scripts/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
@@ -86,7 +86,7 @@ if (Test-Path $installDir) {
 
 # Clone repository
 Write-Host "→ Cloning repository..." -NoNewline
-git clone --quiet https://github.com/cortask-ai/cortask.git $installDir 2>&1 | Out-Null
+git clone --quiet https://github.com/cortask/cortask.git $installDir 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Host " ✗" -ForegroundColor Red
     Write-Host ""

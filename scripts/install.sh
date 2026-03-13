@@ -1,6 +1,6 @@
 #!/bin/bash
 # Cortask Installation Script for Mac/Linux
-# Usage: curl -fsSL https://cortask.dev/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/cortask/cortask/main/scripts/install.sh | bash
 
 set -e
 
@@ -92,7 +92,7 @@ fi
 
 # Clone repository
 echo -ne "→ Cloning repository..."
-git clone --quiet https://github.com/cortask-ai/cortask.git "$INSTALL_DIR" 2>&1 > /dev/null
+git clone --quiet https://github.com/cortask/cortask.git "$INSTALL_DIR" 2>&1 > /dev/null
 if [ $? -ne 0 ]; then
     echo -e " ${RED}✗${NC}"
     echo ""
