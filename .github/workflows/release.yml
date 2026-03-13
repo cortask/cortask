@@ -36,18 +36,21 @@ jobs:
           cache: pnpm
 
       - name: Sync version from tag
+        shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           node -e "
             const fs = require('fs');
+            const version = process.argv[1];
             const dirs = ['packages/core', 'packages/channels', 'packages/gateway', 'packages/cli', 'packages/ui', 'packages/desktop'];
             for (const dir of dirs) {
-              const path = dir + '/package.json';
-              const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
-              pkg.version = '$VERSION';
-              fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+              const p = dir + '/package.json';
+              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+              pkg.version = version;
+              fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
             }
-          "
+            console.log('All packages set to ' + version);
+          " "$VERSION"
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
@@ -125,18 +128,18 @@ jobs:
       - name: Sync version from tag
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          echo "Setting version to $VERSION"
           node -e "
             const fs = require('fs');
+            const version = process.argv[1];
             const dirs = ['packages/core', 'packages/channels', 'packages/gateway', 'packages/cli'];
             for (const dir of dirs) {
-              const path = dir + '/package.json';
-              const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
-              pkg.version = '$VERSION';
-              fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
-              console.log('  ' + pkg.name + ' → ' + '$VERSION');
+              const p = dir + '/package.json';
+              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+              pkg.version = version;
+              fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+              console.log(pkg.name + ' → ' + version);
             }
-          "
+          " "$VERSION"
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
