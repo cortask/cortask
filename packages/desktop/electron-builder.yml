@@ -35,5 +35,6 @@ linux:
 nsis:
     oneClick: false
     allowToChangeInstallationDirectory: true
+artifactName: "${productName}-${version}-${arch}.${ext}"
 npmRebuild: false
 buildDependenciesFromSource: false
