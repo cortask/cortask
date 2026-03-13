@@ -1,0 +1,36 @@
+appId: com.cortask.app
+productName: Cortask
+copyright: Copyright © 2025 Cortask
+directories:
+    output: release
+files:
+    - dist/**/*
+    - package.json
+    - "!node_modules/@cortask/**"
+extraResources:
+    - from: ../ui/dist
+      to: ui
+    - from: ../../skills
+      to: skills
+    - from: build/icon.png
+      to: icon.png
+publish:
+    provider: github
+    owner: cortask
+    repo: cortask
+win:
+    target: nsis
+    icon: build/icon.ico
+mac:
+    target: dmg
+    icon: build/icon.icns
+    category: public.app-category.developer-tools
+linux:
+    target: AppImage
+    icon: build/icon.png
+    category: Development
+nsis:
+    oneClick: false
+    allowToChangeInstallationDirectory: true
+npmRebuild: false
+buildDependenciesFromSource: false

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+release/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Cortask data
+*.enc.json
+master.key
+*.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# References (local only)
+_references/

@@ -1,0 +1,31 @@
+{
+  "name": "@cortask/desktop",
+  "version": "0.1.0",
+  "description": "Cortask desktop application",
+  "author": "Sebastian Kraus",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsup",
+    "dev": "bash -c \"unset ELECTRON_RUN_AS_NODE && electron .\"",
+    "rebuild": "node scripts/rebuild-native.js",
+    "prepackage": "pnpm run rebuild",
+    "package": "electron-builder --config electron-builder.yml",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist release"
+  },
+  "dependencies": {
+    "@cortask/core": "workspace:*",
+    "@cortask/gateway": "workspace:*",
+    "@cortask/channels": "workspace:*",
+    "better-sqlite3": "^11.7.0",
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "cross-env": "^10.1.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0"
+  }
+}

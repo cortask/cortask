@@ -1,0 +1,37 @@
+{
+  "name": "cortask",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "@whiskeysockets/baileys",
+      "protobufjs"
+    ]
+  },
+  "scripts": {
+    "dev": "pnpm run build:deps && pnpm -r --parallel --filter @cortask/gateway --filter @cortask/ui dev",
+    "dev:gateway": "pnpm run build:deps && pnpm -F @cortask/gateway dev",
+    "dev:ui": "pnpm -F @cortask/ui dev",
+    "rebuild:sqlite": "node-gyp rebuild --directory=node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3",
+    "build:deps": "pnpm -F @cortask/core build && pnpm -F @cortask/channels build",
+    "build": "pnpm -F @cortask/core build && pnpm -F @cortask/channels build && pnpm -F @cortask/gateway build && pnpm -F @cortask/ui build && pnpm -F @cortask/cli build && pnpm -F @cortask/desktop build",
+    "build:core": "pnpm -F @cortask/core build",
+    "build:gateway": "pnpm -F @cortask/gateway build",
+    "build:ui": "pnpm -F @cortask/ui build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean",
+    "link-cli": "cd packages/cli && pnpm link --global",
+    "generate-icons": "node scripts/generate-icons.mjs"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.0"
+  }
+}
