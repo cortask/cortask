@@ -3,7 +3,7 @@ name: example
 description: "An example skill demonstrating the SKILL.md format and best practices. Use this as a template when creating new skills for Cortask."
 metadata:
     emoji: "📚"
-    homepage: https://cortask.dev
+    homepage: https://cortask.com
     tags:
         - example
         - documentation
