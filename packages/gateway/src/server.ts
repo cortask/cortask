@@ -236,13 +236,12 @@ export async function startServer(port?: number, host?: string) {
     // Convert skill handlers to ToolHandler format
     const skillToolHandlers: ToolHandler[] = skillRegistry.toolDefs.map((def) => ({
       definition: def,
-      execute: async (args, _context) => {
+      execute: async (args, context) => {
         const handler = skillRegistry.handlers.get(def.name);
         if (!handler) {
           return { toolCallId: "", content: `No handler for skill tool: ${def.name}`, isError: true };
         }
-        const result = await handler(args);
-        return result;
+        return handler(args, context.workspacePath);
       },
     }));
 

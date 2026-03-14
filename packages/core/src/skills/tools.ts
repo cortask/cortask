@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { ToolDefinition, ToolResult } from "../providers/types.js";
 import type {
   SkillEntry,
@@ -13,14 +15,12 @@ import {
 import type { CredentialStore } from "../credentials/store.js";
 import { logger } from "../logging/logger.js";
 
-const MAX_RESPONSE_LENGTH = 50_000;
-
 interface SkillToolRegistry {
   toolDefs: ToolDefinition[];
   toolNames: Set<string>;
   handlers: Map<
     string,
-    (args: Record<string, unknown>) => Promise<ToolResult>
+    (args: Record<string, unknown>, workspacePath: string) => Promise<ToolResult>
   >;
 }
 
@@ -35,7 +35,7 @@ export async function buildSkillTools(
   const toolNames = new Set<string>();
   const handlers = new Map<
     string,
-    (args: Record<string, unknown>) => Promise<ToolResult>
+    (args: Record<string, unknown>, workspacePath: string) => Promise<ToolResult>
   >();
 
   for (const skill of skills) {
@@ -46,12 +46,13 @@ export async function buildSkillTools(
         toolDefs.push(def);
         toolNames.add(def.name);
 
-        handlers.set(def.name, async (args) => {
+        handlers.set(def.name, async (args, workspacePath) => {
           return executeHttpTool(
             template,
             args,
             skill,
             credentialStore,
+            workspacePath,
           );
         });
       }
@@ -72,7 +73,7 @@ export async function buildSkillTools(
           });
           toolNames.add(ct.name);
 
-          handlers.set(ct.name, async (args) => {
+          handlers.set(ct.name, async (args, _workspacePath) => {
             try {
               const result = await ct.execute(args, {
                 credentialStore,
@@ -150,13 +151,14 @@ async function executeHttpTool(
   args: Record<string, unknown>,
   skill: SkillEntry,
   credentialStore: CredentialStore | null,
+  workspacePath: string,
 ): Promise<ToolResult> {
   try {
     // Build credential values map
     const credValues = await resolveCredentials(skill, credentialStore);
 
     // Resolve URL
-    let url = resolvePlaceholders(
+    const url = resolvePlaceholders(
       template.request.url,
       args,
       credValues,
@@ -197,7 +199,7 @@ async function executeHttpTool(
       signal: AbortSignal.timeout(60_000),
     });
 
-    let content = await response.text();
+    const content = await response.text();
 
     if (!response.ok) {
       return {
@@ -207,19 +209,97 @@ async function executeHttpTool(
       };
     }
 
-    if (content.length > MAX_RESPONSE_LENGTH) {
-      content =
-        content.slice(0, MAX_RESPONSE_LENGTH) +
-        "\n...(truncated)";
-    }
+    // Save response to _temp/ and return metadata so the agent can
+    // use data_file to query, artifact to display, or write_file to transform
+    const tempDir = path.join(workspacePath, "_temp");
+    await fs.mkdir(tempDir, { recursive: true });
 
-    return { toolCallId: "", content };
+    const isJson = looksLikeJson(content);
+    const ext = isJson ? "json" : "txt";
+    const filename = `${template.name}_${Date.now()}.${ext}`;
+    const filePath = path.join(tempDir, filename);
+    await fs.writeFile(filePath, content, "utf-8");
+
+    const summary = buildResponseSummary(content, isJson);
+
+    return {
+      toolCallId: "",
+      content: [
+        `Data saved to: _temp/${filename}`,
+        `Size: ${formatBytes(content.length)}`,
+        summary,
+        "",
+        "Use data_file to inspect or query this data, or artifact to display it.",
+      ].join("\n"),
+    };
   } catch (err) {
     return {
       toolCallId: "",
       content: `HTTP tool error: ${err instanceof Error ? err.message : String(err)}`,
       isError: true,
     };
+  }
+}
+
+function looksLikeJson(content: string): boolean {
+  const trimmed = content.trimStart();
+  return trimmed.startsWith("{") || trimmed.startsWith("[");
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function buildResponseSummary(content: string, isJson: boolean): string {
+  if (!isJson) {
+    const lines = content.split("\n");
+    return `Lines: ${lines.length}\nPreview:\n${lines.slice(0, 5).join("\n")}`;
+  }
+
+  try {
+    const parsed = JSON.parse(content);
+
+    // Array of objects — most common API response
+    if (Array.isArray(parsed)) {
+      const count = parsed.length;
+      const sample = parsed[0];
+      const columns = sample && typeof sample === "object"
+        ? Object.keys(sample)
+        : [];
+      return [
+        `Format: JSON array (${count} items)`,
+        columns.length > 0 ? `Columns: ${columns.join(", ")}` : "",
+        count > 0 ? `Sample: ${JSON.stringify(parsed[0]).slice(0, 300)}` : "",
+      ].filter(Boolean).join("\n");
+    }
+
+    // Object with a data/results array inside
+    if (typeof parsed === "object" && parsed !== null) {
+      const keys = Object.keys(parsed);
+      // Find the first array property (likely the data payload)
+      const arrayKey = keys.find((k) => Array.isArray(parsed[k]));
+      if (arrayKey) {
+        const arr = parsed[arrayKey] as unknown[];
+        const sample = arr[0];
+        const columns = sample && typeof sample === "object" && sample !== null
+          ? Object.keys(sample)
+          : [];
+        return [
+          `Format: JSON object with ${keys.length} keys: ${keys.join(", ")}`,
+          `Data in "${arrayKey}": ${arr.length} items`,
+          columns.length > 0 ? `Columns: ${columns.join(", ")}` : "",
+          arr.length > 0 ? `Sample: ${JSON.stringify(arr[0]).slice(0, 300)}` : "",
+        ].filter(Boolean).join("\n");
+      }
+
+      return `Format: JSON object with ${keys.length} keys: ${keys.join(", ")}`;
+    }
+
+    return `Format: JSON (${typeof parsed})`;
+  } catch {
+    return "Format: text (invalid JSON)";
   }
 }
 

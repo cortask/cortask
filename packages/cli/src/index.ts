@@ -115,7 +115,7 @@ program
       execute: async (args: Record<string, unknown>, context: Parameters<ToolHandler["execute"]>[1]) => {
         const handler = skillRegistry.handlers.get(def.name);
         if (!handler) return { toolCallId: "", content: "Tool not found", isError: true };
-        return handler(args);
+        return handler(args, context.workspacePath);
       },
     }));
     const skillPrompts = eligible
