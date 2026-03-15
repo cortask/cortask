@@ -63,7 +63,15 @@ jobs:
         run: pnpm -F @cortask/desktop rebuild
 
       - name: Package desktop app
-        run: pnpm -F @cortask/desktop package
+        shell: bash
+        run: |
+          # Skip macOS code signing & notarization when credentials are not configured
+          if [[ "${{ matrix.platform }}" == "mac" && -z "$CSC_LINK" ]]; then
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            pnpm -F @cortask/desktop package -- -c.mac.notarize=false
+          else
+            pnpm -F @cortask/desktop package
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ matrix.platform == 'mac' && secrets.CSC_LINK || '' }}
