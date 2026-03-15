@@ -110,12 +110,11 @@ export function ChatPage() {
     const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
     const workspaces = useWorkspaceStore((s) => s.workspaces);
     const loading = useWorkspaceStore((s) => s.loading);
+    const previewItem = usePreviewStore((s) => s.item);
 
     if (!loading && workspaces.length === 0) {
         return <WelcomeCard />;
     }
-
-    const previewItem = usePreviewStore((s) => s.item);
 
     return (
         <div className="flex h-full">
