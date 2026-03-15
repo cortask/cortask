@@ -182,15 +182,17 @@ jobs:
           path: unsigned
 
       - name: Azure login
-        if: secrets.AZURE_CLIENT_ID != ''
+        if: ${{ env.HAS_AZURE == 'true' }}
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        env:
+          HAS_AZURE: ${{ secrets.AZURE_CLIENT_ID != '' }}
 
       - name: Sign with Azure Trusted Signing
-        if: secrets.AZURE_CLIENT_ID != ''
+        if: ${{ env.HAS_AZURE == 'true' }}
         uses: azure/trusted-signing-action@v0
         with:
           endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
@@ -201,6 +203,8 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
+        env:
+          HAS_AZURE: ${{ secrets.AZURE_CLIENT_ID != '' }}
 
       - name: Upload signed artifact
         uses: actions/upload-artifact@v4
