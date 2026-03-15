@@ -5,7 +5,8 @@ import { ChevronRight, Download, Eye, File, Loader2 } from "lucide-react";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePreviewStore } from "@/stores/previewStore";
-import { ArtifactViewer, tryParseArtifact } from "@/components/ArtifactViewer";
+import { ArtifactViewer } from "@/components/ArtifactViewer";
+import { tryParseArtifact } from "@/lib/artifacts";
 import {
     Questionnaire,
     type QuestionnaireData,

@@ -66,7 +66,13 @@ export async function startBackend(opts: BackendOptions): Promise<number> {
     process.env.CORTASK_SKILLS_DIR = path.join(process.resourcesPath, "skills");
   }
 
-  await startServer(port, "127.0.0.1");
+  const { server, wss } = await startServer(port, "127.0.0.1");
+
+  serverCleanup = () =>
+    new Promise<void>((resolve) => {
+      wss.close();
+      server.close(() => resolve());
+    });
 
   console.log(`\nCortask is running on port ${port}.`);
 

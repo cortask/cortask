@@ -6,6 +6,22 @@ import { initUpdater } from "./updater.js";
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
+// Ensure only one instance runs at a time.
+// If a second instance is launched (e.g. user clicks the app while it's in tray),
+// focus the existing window instead of starting a duplicate backend.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
 function resolveDataDir(): string {
   return path.join(app.getPath("userData"), "data");
 }

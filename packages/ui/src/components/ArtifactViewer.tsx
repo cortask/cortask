@@ -16,13 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { usePreviewStore } from "@/stores/previewStore";
-
-interface ArtifactData {
-  artifactId: string;
-  type: string;
-  title: string;
-  mimeType: string;
-}
+import type { ArtifactData } from "@/lib/artifacts";
 
 export function ArtifactViewer({ artifact }: { artifact: ArtifactData }) {
   const [expanded, setExpanded] = useState(false);
@@ -143,17 +137,3 @@ function CsvTable({ url }: { url: string }) {
   );
 }
 
-/**
- * Try to parse a tool result string as an artifact reference.
- */
-export function tryParseArtifact(content: string): ArtifactData | null {
-  try {
-    const parsed = JSON.parse(content);
-    if (parsed.artifactId && parsed.type && parsed.title) {
-      return parsed as ArtifactData;
-    }
-  } catch {
-    // Not JSON or not an artifact
-  }
-  return null;
-}
