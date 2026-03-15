@@ -272,9 +272,14 @@ function ToolCallBubble({ message }: { message: ChatMessage }) {
                         </span>
                     )}
 
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground truncate max-w-md">
                         {message.toolName || "Tool"}
                         {message.status === "running" && "…"}
+                        {message.status === "running" && inputText && (
+                            <span className="ml-1.5 text-muted-foreground/60">
+                                {truncate(inputText, 80)}
+                            </span>
+                        )}
                     </span>
 
                     {/* Chevron */}
