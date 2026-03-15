@@ -63,22 +63,10 @@ jobs:
         run: pnpm -F @cortask/desktop rebuild
 
       - name: Package desktop app
-        shell: bash
-        run: |
-          # Skip macOS code signing & notarization when credentials are not configured
-          if [[ "${{ matrix.platform }}" == "mac" && -z "$CSC_LINK" ]]; then
-            export CSC_IDENTITY_AUTO_DISCOVERY=false
-            pnpm -F @cortask/desktop package -- -c.mac.notarize=false
-          else
-            pnpm -F @cortask/desktop package
-          fi
+        run: pnpm -F @cortask/desktop package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.CSC_KEY_PASSWORD || '' }}
-          APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
