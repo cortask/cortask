@@ -47,3 +47,4 @@ export { createArtifactTool } from "./artifact.js";
 export { createBrowserTool } from "./browser.js";
 export { createSubagentTool, setSubagentRunner } from "./subagent.js";
 export { createSwitchWorkspaceTool } from "./switch-workspace.js";
+export { createSkillTool } from "./skill.js";

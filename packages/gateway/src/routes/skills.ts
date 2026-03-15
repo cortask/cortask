@@ -6,6 +6,10 @@ import {
   clearSkillCache,
   installSkillFromGit,
   removeSkill,
+  createSkill,
+  updateSkill,
+  readSkillFile,
+  validateSkillName,
   getCredentialStorageKey,
   getOAuth2StorageKeys,
   buildSkillOAuth2AuthUrl,
@@ -108,6 +112,90 @@ export function createSkillRoutes(ctx: GatewayContext): Router {
       res.status(204).send();
     } catch (err) {
       res.status(500).json({
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  });
+
+  // ───── Create custom skill ─────
+  router.post("/", async (req, res) => {
+    try {
+      const { name, content } = req.body;
+      if (!name || !content) {
+        res.status(400).json({ error: "name and content are required" });
+        return;
+      }
+
+      const nameErr = validateSkillName(name);
+      if (nameErr) {
+        res.status(400).json({ error: nameErr });
+        return;
+      }
+
+      // Check for conflict with bundled skills
+      const allSkills = await loadSkills(
+        bundledDir,
+        userSkillsDir,
+        ctx.config.skills.dirs,
+        ctx.credentialStore,
+      );
+      const isBundled = allSkills.some(
+        (s) => s.source === "bundled" && s.manifest.name === name,
+      );
+      if (isBundled) {
+        res.status(409).json({
+          error: `A built-in skill named "${name}" already exists. Choose a different name.`,
+        });
+        return;
+      }
+
+      const result = await createSkill(userSkillsDir, name, content);
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(500).json({
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  });
+
+  // ───── Update custom skill ─────
+  router.put("/:name", async (req, res) => {
+    try {
+      const { content } = req.body;
+      if (!content) {
+        res.status(400).json({ error: "content is required" });
+        return;
+      }
+
+      // Reject editing bundled skills
+      const allSkills = await loadSkills(
+        bundledDir,
+        userSkillsDir,
+        ctx.config.skills.dirs,
+        ctx.credentialStore,
+      );
+      const skill = allSkills.find((s) => s.manifest.name === req.params.name);
+      if (skill && !skill.editable) {
+        res.status(403).json({ error: "Built-in skills cannot be edited" });
+        return;
+      }
+
+      await updateSkill(userSkillsDir, req.params.name, content);
+      res.json({ name: req.params.name });
+    } catch (err) {
+      res.status(500).json({
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  });
+
+  // ───── Get raw SKILL.md content for editing ─────
+  router.get("/:name/content", async (req, res) => {
+    try {
+      const content = await readSkillFile(userSkillsDir, req.params.name);
+      res.json({ name: req.params.name, content });
+    } catch (err) {
+      res.status(404).json({
         error: err instanceof Error ? err.message : String(err),
       });
     }

@@ -18,6 +18,7 @@ export type {
 export { loadSkills, getEligibleSkills, clearSkillCache } from "./loader.js";
 export { buildSkillTools } from "./tools.js";
 export { installSkillFromGit, removeSkill } from "./installer.js";
+export { createSkill, updateSkill, readSkillFile, validateSkillName } from "./writer.js";
 export {
   loadCredentialSchema,
   getCredentialStorageKey,

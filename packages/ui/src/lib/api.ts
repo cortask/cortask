@@ -91,6 +91,20 @@ export const api = {
       }),
     remove: (name: string) =>
       request<void>(`/skills/${name}`, { method: "DELETE" }),
+    create: (data: { name: string; content: string }) =>
+      request<{ name: string; path: string }>("/skills", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (name: string, data: { content: string }) =>
+      request<{ name: string }>(`/skills/${encodeURIComponent(name)}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    getContent: (name: string) =>
+      request<{ name: string; content: string }>(
+        `/skills/${encodeURIComponent(name)}/content`,
+      ),
     oauth2Authorize: (name: string) =>
       request<{ authorizationUrl: string; redirectUri: string }>(`/skills/${encodeURIComponent(name)}/oauth2/authorize`),
     oauth2RedirectUri: (name: string) =>

@@ -24,6 +24,7 @@ import {
   createBrowserTool,
   createSubagentTool,
   createSwitchWorkspaceTool,
+  createSkillTool,
   setSubagentRunner,
   cleanupSubagentRecords,
   loadSkills,
@@ -267,6 +268,7 @@ export async function startServer(port?: number, host?: string) {
           ? builtinTools.filter((t) => !uiOnlyTools.has(t.definition.name))
           : builtinTools),
         createCronTool(cronService),
+        createSkillTool(userSkillsDir, allSkills.filter(s => s.source === "bundled").map(s => s.manifest.name)),
         ...(channelCtx ? [] : [createArtifactTool(artifactStore)]),
         createBrowserTool(artifactStore),
         createSubagentTool(),

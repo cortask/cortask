@@ -11,7 +11,8 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { Puzzle, Search, GitBranch, Plus, ChevronDown, Trash2, ChevronRight, Info, KeyRound, FileText, ExternalLink } from "lucide-react";
+import { Puzzle, Search, GitBranch, Plus, ChevronDown, Trash2, ChevronRight, Info, KeyRound, FileText, ExternalLink, Pencil } from "lucide-react";
+import { SkillEditor } from "@/components/SkillEditor";
 import type { SkillCredentialDef } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { MODELS_BY_PROVIDER, PROVIDER_STORE_IDS } from "@/lib/models";
@@ -52,7 +53,10 @@ export function SkillsPage() {
     const [gitDialogOpen, setGitDialogOpen] = useState(false);
     const [installUrl, setInstallUrl] = useState("");
     const [installing, setInstalling] = useState(false);
-    const [customDialogOpen, setCustomDialogOpen] = useState(false);
+    const [editorOpen, setEditorOpen] = useState(false);
+    const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
+    const [editorSkillName, setEditorSkillName] = useState<string | undefined>();
+    const [editorInitialContent, setEditorInitialContent] = useState<string | undefined>();
 
     const fetchSkills = useCallback(async () => {
         try {
@@ -184,7 +188,12 @@ export function SkillsPage() {
                 <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCustomDialogOpen(true)}
+                    onClick={() => {
+                        setEditorMode("create");
+                        setEditorSkillName(undefined);
+                        setEditorInitialContent(undefined);
+                        setEditorOpen(true);
+                    }}
                 >
                     <Plus className="mr-1.5 h-3.5 w-3.5" />
                     Create skill
@@ -279,7 +288,27 @@ export function SkillsPage() {
                                     ))}
                                 </nav>
                                 {selectedSkill.editable && (
-                                    <div className="p-2 border-t">
+                                    <div className="p-2 border-t space-y-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full justify-start text-xs"
+                                            onClick={async () => {
+                                                try {
+                                                    const { content } = await api.skills.getContent(selectedSkill.name);
+                                                    setEditorMode("edit");
+                                                    setEditorSkillName(selectedSkill.name);
+                                                    setEditorInitialContent(content);
+                                                    setSelectedSkill(null);
+                                                    setEditorOpen(true);
+                                                } catch (err) {
+                                                    setError(err instanceof Error ? err.message : "Failed to load skill content");
+                                                }
+                                            }}
+                                        >
+                                            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                                            Edit skill
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -562,41 +591,15 @@ export function SkillsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Create Custom Skill Dialog */}
-            <Dialog open={customDialogOpen} onOpenChange={setCustomDialogOpen}>
-                <DialogContent className="max-w-md bg-card">
-                    <DialogHeader>
-                        <DialogTitle>Create custom skill</DialogTitle>
-                        <DialogDescription>
-                            Create a new skill by adding a SKILL.md file to your
-                            user skills directory.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="rounded-lg border bg-muted/40 p-4">
-                        <p className="text-sm text-muted-foreground">
-                            Create a folder with a{" "}
-                            <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                                SKILL.md
-                            </code>{" "}
-                            file in your user skills directory. The skill will
-                            appear here automatically after a page refresh.
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                            See the <strong>example</strong> skill for the
-                            SKILL.md format reference.
-                        </p>
-                    </div>
-                    <div className="flex justify-end">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setCustomDialogOpen(false)}
-                        >
-                            Got it
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {/* Skill Editor */}
+            <SkillEditor
+                open={editorOpen}
+                mode={editorMode}
+                skillName={editorSkillName}
+                initialContent={editorInitialContent}
+                onSave={fetchSkills}
+                onClose={() => setEditorOpen(false)}
+            />
         </div>
     );
 }
@@ -1206,6 +1209,16 @@ function SkillCard({
             onClick={onClick}
             className="relative overflow-hidden flex flex-col items-center gap-3 rounded-lg border bg-card p-5 transition-colors hover:bg-accent/50 text-center"
         >
+            {/* Source badge */}
+            {skill.source !== "bundled" && (
+                <Badge
+                    variant="outline"
+                    className="absolute top-2 left-2 text-[10px] px-1.5 py-0 text-muted-foreground border-border bg-transparent hover:bg-transparent"
+                >
+                    {skill.source === "git" ? "Git" : "Custom"}
+                </Badge>
+            )}
+
             {/* Status badge */}
             <Badge
                 className={cn(

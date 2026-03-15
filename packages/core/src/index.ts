@@ -17,7 +17,7 @@ export type {
   QuestionnaireResponse,
   QuestionnaireQuestion,
 } from "./agent/types.js";
-export { builtinTools, createCronTool, createArtifactTool, createBrowserTool, createSubagentTool, setSubagentRunner, createSwitchWorkspaceTool } from "./agent/tools/index.js";
+export { builtinTools, createCronTool, createArtifactTool, createBrowserTool, createSubagentTool, setSubagentRunner, createSwitchWorkspaceTool, createSkillTool } from "./agent/tools/index.js";
 export { buildSystemPrompt } from "./agent/system-prompt.js";
 export * from "./agent/subagent/index.js";
 
@@ -58,6 +58,10 @@ export {
   buildSkillTools,
   installSkillFromGit,
   removeSkill,
+  createSkill,
+  updateSkill,
+  readSkillFile,
+  validateSkillName,
   getCredentialStorageKey,
   getOAuth2StorageKeys,
   buildSkillOAuth2AuthUrl,
