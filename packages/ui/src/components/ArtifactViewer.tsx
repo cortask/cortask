@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PanelRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { usePreviewStore } from "@/stores/previewStore";
 
 interface ArtifactData {
   artifactId: string;
@@ -67,7 +69,7 @@ export function ArtifactViewer({ artifact }: { artifact: ArtifactData }) {
                 Loading...
               </pre>
             )}
-            <div className="px-3 py-2 border-t">
+            <div className="px-3 py-2 border-t flex items-center gap-3">
               <a
                 href={rawUrl}
                 target="_blank"
@@ -76,11 +78,29 @@ export function ArtifactViewer({ artifact }: { artifact: ArtifactData }) {
               >
                 Open raw
               </a>
+              <OpenInPanelButton artifact={artifact} url={rawUrl} />
             </div>
           </div>
         </CollapsibleContent>
       </Card>
     </Collapsible>
+  );
+}
+
+function OpenInPanelButton({ artifact, url }: { artifact: ArtifactData; url: string }) {
+  const openPreview = usePreviewStore((s) => s.open);
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        openPreview({ title: artifact.title, url, type: artifact.type })
+      }
+      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+    >
+      <PanelRight className="h-3 w-3" />
+      Open in panel
+    </button>
   );
 }
 

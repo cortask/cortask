@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { ChatInput } from "@/components/ChatInput";
 import { MessageList } from "@/components/MessageList";
+import { PreviewPanel } from "@/components/PreviewPanel";
 import { useChatStore } from "@/stores/chatStore";
+import { usePreviewStore } from "@/stores/previewStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -113,32 +115,40 @@ export function ChatPage() {
         return <WelcomeCard />;
     }
 
+    const previewItem = usePreviewStore((s) => s.item);
+
     return (
-        <div className="relative flex flex-col h-full">
-            {/* Messages */}
-            <MessageList
-                messages={messages}
-                streamingText={streamingText}
-                thinkingText={thinkingText}
-                isStreaming={isStreaming}
-            />
-
-            {/* Fade gradient above input */}
-            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
-
-            {/* Input */}
-            <div className="relative z-10">
-                <ChatInput
-                    onSend={(text, attachments) => {
-                        if (activeWorkspace) {
-                            sendMessage(text, activeWorkspace.id, attachments);
-                        }
-                    }}
+        <div className="flex h-full">
+            {/* Chat column */}
+            <div className="relative flex flex-col h-full flex-1 min-w-0">
+                {/* Messages */}
+                <MessageList
+                    messages={messages}
+                    streamingText={streamingText}
+                    thinkingText={thinkingText}
                     isStreaming={isStreaming}
-                    onCancel={cancelStream}
-                    disabled={!activeWorkspace}
                 />
+
+                {/* Fade gradient above input */}
+                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
+
+                {/* Input */}
+                <div className="relative z-10">
+                    <ChatInput
+                        onSend={(text, attachments) => {
+                            if (activeWorkspace) {
+                                sendMessage(text, activeWorkspace.id, attachments);
+                            }
+                        }}
+                        isStreaming={isStreaming}
+                        onCancel={cancelStream}
+                        disabled={!activeWorkspace}
+                    />
+                </div>
             </div>
+
+            {/* Preview panel (right side) */}
+            {previewItem && <PreviewPanel />}
         </div>
     );
 }

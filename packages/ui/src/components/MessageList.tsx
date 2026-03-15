@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChevronRight, Download, File, Loader2 } from "lucide-react";
+import { ChevronRight, Download, Eye, File, Loader2 } from "lucide-react";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { usePreviewStore } from "@/stores/previewStore";
 import { ArtifactViewer, tryParseArtifact } from "@/components/ArtifactViewer";
 import {
     Questionnaire,
@@ -398,32 +399,51 @@ function formatSize(bytes: number): string {
 
 function FileCard({ fileRef }: { fileRef: FileRef }) {
     const workspaceId = useWorkspaceStore((s) => s.activeWorkspace?.id);
+    const openPreview = usePreviewStore((s) => s.open);
     const downloadUrl = workspaceId
         ? `/api/workspaces/${workspaceId}/files/${fileRef.path}`
         : "#";
     const fileName = fileRef.path.split("/").pop() || fileRef.path;
+    const ext = fileName.includes(".")
+        ? fileName.split(".").pop()!.toLowerCase()
+        : "text";
+
+    const handlePreview = (e: React.MouseEvent) => {
+        e.preventDefault();
+        openPreview({ title: fileName, url: downloadUrl, type: ext });
+    };
 
     return (
         <div className="flex gap-3">
             <div className="w-7 shrink-0" />
-            <a
-                href={downloadUrl}
-                download={fileName}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-md border border-border px-3 py-2 hover:bg-secondary transition-colors max-w-[80%]"
-            >
-                <File className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="min-w-0 flex-1">
-                    <p className="text-sm truncate">{fileName}</p>
-                    {fileRef.size > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                            {formatSize(fileRef.size)}
-                        </p>
-                    )}
-                </div>
-                <Download className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            </a>
+            <div className="flex items-center gap-1.5 max-w-[80%]">
+                <button
+                    type="button"
+                    onClick={handlePreview}
+                    className="flex items-center gap-3 rounded-md border border-border px-3 py-2 hover:bg-secondary transition-colors cursor-pointer"
+                >
+                    <File className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0 flex-1 text-left">
+                        <p className="text-sm truncate">{fileName}</p>
+                        {fileRef.size > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                {formatSize(fileRef.size)}
+                            </p>
+                        )}
+                    </div>
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                </button>
+                <a
+                    href={downloadUrl}
+                    download={fileName}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-md p-1.5 hover:bg-secondary transition-colors text-muted-foreground"
+                    title="Download"
+                >
+                    <Download className="h-3.5 w-3.5" />
+                </a>
+            </div>
         </div>
     );
 }
