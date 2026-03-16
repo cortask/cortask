@@ -133,7 +133,8 @@ async function findAvailablePort(
       }
       return port;
     } catch (err: any) {
-      if (err.code === 'EADDRINUSE' || err.message?.includes('already in use')) {
+      const code = err.code ?? err.cause?.code;
+      if (code === 'EADDRINUSE' || String(err.message).includes('EADDRINUSE') || String(err.message).includes('already in use')) {
         console.log(`[desktop] Port ${port} is in use, trying next port...`);
         continue;
       }

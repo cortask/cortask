@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { WindowControls } from "@/components/WindowControls";
 
 const PROVIDERS = [
     { id: "anthropic", name: "Anthropic", logo: "/logos/anthropic.svg", fieldLabel: "API Key", fieldType: "password" as const, darkInvert: false },
@@ -65,6 +66,12 @@ export function OnboardingPage() {
 
     return (
         <div className="flex h-screen items-center justify-center bg-background p-4">
+            <div
+                className="fixed top-0 left-0 right-0 h-10 z-50"
+                style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+            >
+                <WindowControls />
+            </div>
             <Card className="w-full max-w-lg">
                 <CardContent className="p-8 space-y-6">
                     <div className="text-center space-y-2">

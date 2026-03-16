@@ -86,14 +86,17 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async generateText(params: GenerateTextParams): Promise<GenerateTextResult> {
+    const maxTokens = params.maxTokens ?? 16000;
+    const budgetTokens = 10000;
+    const useThinking = maxTokens > budgetTokens;
     const response = await this.client.messages.create({
       model: params.model,
-      max_tokens: params.maxTokens ?? 16000,
+      max_tokens: maxTokens,
       temperature: 1,
       system: params.systemPrompt,
       messages: toAnthropicMessages(params.messages),
       tools: params.tools ? toAnthropicTools(params.tools) : undefined,
-      thinking: { type: "enabled", budget_tokens: 10000 },
+      ...(useThinking ? { thinking: { type: "enabled", budget_tokens: budgetTokens } } : {}),
     } as Anthropic.MessageCreateParams) as Anthropic.Message;
 
     let content = "";
@@ -136,14 +139,17 @@ export class AnthropicProvider implements LLMProvider {
   async *generateStream(
     params: GenerateTextParams,
   ): AsyncIterable<StreamChunk> {
+    const maxTokens = params.maxTokens ?? 16000;
+    const budgetTokens = 10000;
+    const useThinking = maxTokens > budgetTokens;
     const stream = this.client.messages.stream({
       model: params.model,
-      max_tokens: params.maxTokens ?? 16000,
+      max_tokens: maxTokens,
       temperature: 1,
       system: params.systemPrompt,
       messages: toAnthropicMessages(params.messages),
       tools: params.tools ? toAnthropicTools(params.tools) : undefined,
-      thinking: { type: "enabled", budget_tokens: 10000 },
+      ...(useThinking ? { thinking: { type: "enabled", budget_tokens: budgetTokens } } : {}),
     } as Anthropic.MessageCreateParams);
 
     for await (const event of stream) {
