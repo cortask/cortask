@@ -36,16 +36,30 @@ import {
   Plus,
   Trash2,
   Loader2,
+  Download,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
+
+const isDesktop = !!(window as any).cortask;
 
 const tabs = [
   { id: "agent", label: "Agent", icon: Bot },
   { id: "spending", label: "Spending", icon: Wallet },
   { id: "providers", label: "AI Providers", icon: Cpu },
   { id: "server", label: "Server", icon: Server },
+  ...(isDesktop ? [{ id: "updates" as const, label: "Updates", icon: Download }] : []),
 ] as const;
 
-type TabId = (typeof tabs)[number]["id"];
+type TabId = "agent" | "spending" | "providers" | "server" | "updates";
+
+interface UpdateStatus {
+  status: "idle" | "checking" | "available" | "up-to-date" | "downloading" | "downloaded" | "error";
+  version?: string;
+  percent?: number;
+  error?: string;
+}
 
 const ALL_PROVIDERS = [
   { id: "anthropic", name: "Anthropic", logo: "/logos/anthropic.svg", fieldLabel: "API Key", fieldType: "password" as const, darkInvert: false },
@@ -117,6 +131,44 @@ export function SettingsPage() {
   const [usagePeriod, setUsagePeriod] = useState<"daily" | "weekly" | "monthly">("monthly");
   // Separate summary for spending limit progress (always follows the configured limit period)
   const [limitUsage, setLimitUsage] = useState<UsageSummary | null>(null);
+
+  // Updater state
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ status: "idle" });
+  const [appVersion, setAppVersion] = useState<string>("unknown");
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    const cortask = (window as any).cortask;
+    cortask?.getVersion?.().then((v: string) => setAppVersion(v));
+    const cleanup = cortask?.updater?.onStatus((data: UpdateStatus) => {
+      setUpdateStatus(data);
+    });
+    return () => cleanup?.();
+  }, []);
+
+  const checkForUpdates = async () => {
+    setUpdateStatus({ status: "checking" });
+    try {
+      const cortask = (window as any).cortask;
+      await cortask?.updater?.check();
+    } catch {
+      setUpdateStatus({ status: "error", error: "Failed to check for updates" });
+    }
+  };
+
+  const downloadUpdate = async () => {
+    try {
+      const cortask = (window as any).cortask;
+      await cortask?.updater?.download();
+    } catch {
+      setUpdateStatus({ status: "error", error: "Failed to download update" });
+    }
+  };
+
+  const installUpdate = async () => {
+    const cortask = (window as any).cortask;
+    await cortask?.updater?.install();
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -1148,6 +1200,99 @@ export function SettingsPage() {
                   </CardContent>
                 </Card>
               )}
+            </>
+          )}
+
+          {/* ─── Updates ─── */}
+          {activeTab === "updates" && (
+            <>
+              <div>
+                <h2 className="text-lg font-semibold">Updates</h2>
+                <p className="text-sm text-muted-foreground">
+                  Check for and install application updates.
+                </p>
+              </div>
+
+              <Card>
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Current Version</p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {appVersion}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={checkForUpdates}
+                      disabled={updateStatus.status === "checking" || updateStatus.status === "downloading"}
+                    >
+                      <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", updateStatus.status === "checking" && "animate-spin")} />
+                      {updateStatus.status === "checking" ? "Checking..." : "Check for Updates"}
+                    </Button>
+                  </div>
+
+                  {updateStatus.status === "up-to-date" && (
+                    <div className="flex items-center gap-2 text-sm text-green-500">
+                      <CheckCircle2 className="h-4 w-4" />
+                      You're on the latest version.
+                    </div>
+                  )}
+
+                  {updateStatus.status === "available" && (
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">
+                          Version {updateStatus.version} available
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          A new version is ready to download.
+                        </p>
+                      </div>
+                      <Button size="sm" onClick={downloadUpdate}>
+                        <Download className="mr-1.5 h-3.5 w-3.5" />
+                        Download
+                      </Button>
+                    </div>
+                  )}
+
+                  {updateStatus.status === "downloading" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Downloading update...</span>
+                        <span className="text-muted-foreground">
+                          {Math.round(updateStatus.percent ?? 0)}%
+                        </span>
+                      </div>
+                      <Progress value={updateStatus.percent ?? 0} />
+                    </div>
+                  )}
+
+                  {updateStatus.status === "downloaded" && (
+                    <div className="flex items-center justify-between rounded-md border border-green-800 bg-green-900/20 p-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-green-400">
+                          Version {updateStatus.version} downloaded
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Restart the app to install the update.
+                        </p>
+                      </div>
+                      <Button size="sm" onClick={installUpdate}>
+                        Restart & Install
+                      </Button>
+                    </div>
+                  )}
+
+                  {updateStatus.status === "error" && (
+                    <div className="flex items-center gap-2 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      {updateStatus.error ?? "An error occurred."}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </>
           )}
 

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("cortask", {
   platform: process.platform,
+  getVersion: (): Promise<string> => ipcRenderer.invoke("app:version"),
   browseFolder: (): Promise<string | null> => {
     return ipcRenderer.invoke("browse-folder");
   },

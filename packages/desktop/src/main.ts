@@ -157,6 +157,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.on("window:close", () => mainWindow?.close());
   ipcMain.handle("window:isMaximized", () => mainWindow?.isMaximized() ?? false);
+  ipcMain.handle("app:version", () => app.getVersion());
 
   // Set up IPC handlers
   ipcMain.handle("browse-folder", async () => {
