@@ -21,6 +21,11 @@ publish:
 win:
     target: nsis
     icon: build/icon.ico
+    azureSignOptions:
+        publisherName: Sebastian Kraus
+        endpoint: https://weu.codesigning.azure.net/
+        certificateProfileName: cortask
+        codeSigningAccountName: Cortask
 mac:
     target: dmg
     icon: build/icon.icns

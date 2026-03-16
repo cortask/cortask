@@ -71,6 +71,9 @@ jobs:
           APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
+          AZURE_TENANT_ID: ${{ matrix.platform == 'win' && secrets.AZURE_TENANT_ID || '' }}
+          AZURE_CLIENT_ID: ${{ matrix.platform == 'win' && secrets.AZURE_CLIENT_ID || '' }}
+          AZURE_CLIENT_SECRET: ${{ matrix.platform == 'win' && secrets.AZURE_CLIENT_SECRET || '' }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -162,64 +165,12 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  sign-windows:
-    needs: [build]
-    runs-on: windows-latest
-
-    steps:
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: desktop-win
-          path: unsigned
-
-      - name: Azure login
-        if: ${{ env.HAS_AZURE == 'true' }}
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        env:
-          HAS_AZURE: ${{ secrets.AZURE_CLIENT_ID != '' }}
-
-      - name: Sign with Azure Trusted Signing
-        if: ${{ env.HAS_AZURE == 'true' }}
-        uses: azure/trusted-signing-action@v0
-        with:
-          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE }}
-          files-folder: unsigned
-          files-folder-filter: exe
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
-        env:
-          HAS_AZURE: ${{ secrets.AZURE_CLIENT_ID != '' }}
-
-      - name: Upload signed artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-win-signed
-          path: unsigned/*.exe
-
   release:
-    needs: [build, docker, sign-windows]
-    if: always() && needs.build.result == 'success' && needs.docker.result == 'success'
+    needs: [build, docker]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download signed Windows exe
-        id: download-signed
-        uses: actions/download-artifact@v4
-        with:
-          name: desktop-win-signed
-          path: artifacts
-        continue-on-error: true
-
-      - name: Download unsigned Windows exe (fallback)
-        if: steps.download-signed.outcome != 'success'
+      - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
           name: desktop-win
