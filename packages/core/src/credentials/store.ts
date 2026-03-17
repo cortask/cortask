@@ -83,7 +83,10 @@ export class EncryptedCredentialStore implements CredentialStore {
     if (!this.store) return;
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
     const tmp = `${this.filePath}.${process.pid}.tmp`;
-    await fs.writeFile(tmp, JSON.stringify(this.store, null, 2), "utf-8");
+    await fs.writeFile(tmp, JSON.stringify(this.store, null, 2), {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
     await fs.rename(tmp, this.filePath);
   }
 

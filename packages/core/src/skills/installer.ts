@@ -1,4 +1,4 @@
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { clearSkillCache } from "./loader.js";
@@ -23,6 +23,11 @@ export async function installSkillFromGit(
     throw new Error(`Invalid git URL: ${gitUrl}`);
   }
 
+  // Validate URL format to prevent malicious input
+  if (!/^(https?:\/\/|git@[\w.-]+:|ssh:\/\/)/.test(gitUrl)) {
+    throw new Error(`Invalid git URL format: ${gitUrl}`);
+  }
+
   const targetDir = path.join(skillsDir, repoName);
 
   // Check if already installed
@@ -34,8 +39,8 @@ export async function installSkillFromGit(
     // Directory doesn't exist — good
   }
 
-  // Clone the repo
-  await execAsync(`git clone --depth 1 "${gitUrl}" "${targetDir}"`);
+  // Clone the repo (using execFile to prevent shell injection)
+  await execFileAsync("git", ["clone", "--depth", "1", gitUrl, targetDir]);
 
   // Verify SKILL.md exists
   try {
@@ -91,9 +96,9 @@ export async function removeSkill(
   logger.info(`Removed skill "${skillName}"`, "skills");
 }
 
-function execAsync(command: string): Promise<string> {
+function execFileAsync(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    exec(command, { timeout: 60_000 }, (error, stdout, stderr) => {
+    execFile(cmd, args, { timeout: 60_000 }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(stderr || error.message));
         return;

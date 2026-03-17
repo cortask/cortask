@@ -338,12 +338,55 @@ export async function startServer(port?: number, host?: string) {
 
   // Express app
   const app = express();
-  app.use(cors());
+
+  // CORS: only allow local origins (localhost/127.0.0.1) to protect against
+  // cross-origin attacks from external sites. Additional origins can be allowed
+  // via CORTASK_CORS_ORIGIN env var.
+  const corsOrigin = process.env.CORTASK_CORS_ORIGIN;
+  app.use(cors({
+    origin: (origin, callback) => {
+      // Allow requests with no Origin (same-origin, curl, etc.)
+      if (!origin) return callback(null, true);
+      try {
+        const url = new URL(origin);
+        if (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === finalHost) {
+          return callback(null, true);
+        }
+      } catch { /* invalid origin */ }
+      if (corsOrigin && origin === corsOrigin) return callback(null, true);
+      callback(new Error("CORS not allowed"));
+    },
+  }));
+
+  // Security headers
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    next();
+  });
+
   app.use(express.json({ limit: "10mb" }));
 
   // HTTP + WebSocket server (created early so wss is available to routes)
   const server = createServer(app);
-  wss = new WebSocketServer({ server, path: "/ws" });
+  wss = new WebSocketServer({
+    server,
+    path: "/ws",
+    verifyClient: ({ origin }: { origin?: string }) => {
+      // Allow connections with no Origin (e.g. non-browser clients)
+      if (!origin) return true;
+      // Allow any local origin (localhost/127.0.0.1) regardless of port —
+      // the threat is external sites, not local processes
+      try {
+        const url = new URL(origin);
+        if (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === finalHost) {
+          return true;
+        }
+      } catch { /* invalid origin → reject */ }
+      if (corsOrigin && origin === corsOrigin) return true;
+      return false;
+    },
+  });
   wss.on("connection", (ws: WebSocket) => {
     handleWebSocket(ws, ctx);
   });
