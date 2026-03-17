@@ -3,10 +3,11 @@ import { startServer as _startServer } from "./server.js";
 export { startServer } from "./server.js";
 export type { GatewayContext, AgentRunnerOptions } from "./server.js";
 
-// When run directly, start the server
+// When run directly (not imported by CLI), start the server
+const entryScript = process.argv[1] ?? "";
 const isMainModule =
   typeof process !== "undefined" &&
-  process.argv[1]?.endsWith("index.js");
+  (entryScript.includes("gateway") && entryScript.endsWith("index.js"));
 
 if (isMainModule) {
   _startServer().catch((err: unknown) => {
