@@ -5,9 +5,12 @@ import cors from "cors";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const _require = createRequire(import.meta.url);
+const PKG_VERSION: string = _require("../package.json").version;
 import {
   loadConfig,
   getDataDir,
@@ -390,7 +393,21 @@ export async function startServer(port?: number, host?: string) {
 
   // Health check
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", version: "0.1.0" });
+    res.json({ status: "ok", version: PKG_VERSION });
+  });
+
+  // Update check
+  app.get("/api/updates/check", async (_req, res) => {
+    try {
+      const response = await fetch("https://registry.npmjs.org/cortask/latest");
+      if (!response.ok) throw new Error("Failed to fetch from npm");
+      const data = await response.json() as { version: string };
+      const latest = data.version;
+      const hasUpdate = latest !== PKG_VERSION;
+      res.json({ currentVersion: PKG_VERSION, latestVersion: latest, hasUpdate });
+    } catch (err) {
+      res.json({ currentVersion: PKG_VERSION, latestVersion: null, hasUpdate: false, error: (err as Error).message });
+    }
   });
 
   // Serve built UI static files (for standalone & desktop mode)

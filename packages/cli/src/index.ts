@@ -543,4 +543,35 @@ cr.command("remove")
     cronService.stop();
   });
 
+// ── update ─────────────────────────────────────────────────
+
+program
+  .command("update")
+  .description("Check for updates and optionally install them")
+  .option("--check", "Only check, do not install")
+  .action(async (opts) => {
+    try {
+      const res = await fetch("https://registry.npmjs.org/cortask/latest");
+      if (!res.ok) throw new Error("Failed to fetch from npm registry");
+      const data = (await res.json()) as { version: string };
+      const latest = data.version;
+
+      if (latest === VERSION) {
+        console.log(`${theme.success("✓")} You're on the latest version ${theme.info(VERSION)}`);
+        return;
+      }
+
+      console.log(`${theme.info("Update available:")} ${theme.muted(VERSION)} → ${theme.success(latest)}`);
+
+      if (opts.check) return;
+
+      console.log(`\nRun the following command to update:\n`);
+      console.log(`  ${theme.info("npm update -g cortask")}\n`);
+    } catch (err) {
+      console.error(
+        `${theme.error("✗")} Failed to check for updates: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  });
+
 program.parse();

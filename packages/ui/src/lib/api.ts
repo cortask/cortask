@@ -217,6 +217,10 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+
+  updates: {
+    check: () => request<UpdateInfo>("/updates/check"),
+  },
 };
 
 // Types
@@ -425,6 +429,13 @@ export interface PromptTemplate {
   category: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string | null;
+  hasUpdate: boolean;
+  error?: string;
 }
 
 export interface EnabledModel {

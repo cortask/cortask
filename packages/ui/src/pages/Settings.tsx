@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { api, type Provider, type AppConfig, type UsageSummary, type AvailableModel, type EnabledModel } from "@/lib/api";
+import { api, type Provider, type AppConfig, type UsageSummary, type AvailableModel, type EnabledModel, type UpdateInfo } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,7 +49,7 @@ const tabs = [
   { id: "spending", label: "Spending", icon: Wallet },
   { id: "providers", label: "AI Providers", icon: Cpu },
   { id: "server", label: "Server", icon: Server },
-  ...(isDesktop ? [{ id: "updates" as const, label: "Updates", icon: Download }] : []),
+  { id: "updates", label: "Updates", icon: Download },
 ] as const;
 
 type TabId = "agent" | "spending" | "providers" | "server" | "updates";
@@ -135,24 +135,43 @@ export function SettingsPage() {
   // Updater state
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ status: "idle" });
   const [appVersion, setAppVersion] = useState<string>("unknown");
+  const [webUpdateInfo, setWebUpdateInfo] = useState<UpdateInfo | null>(null);
 
   useEffect(() => {
-    if (!isDesktop) return;
-    const cortask = (window as any).cortask;
-    cortask?.getVersion?.().then((v: string) => setAppVersion(v));
-    const cleanup = cortask?.updater?.onStatus((data: UpdateStatus) => {
-      setUpdateStatus(data);
-    });
-    return () => cleanup?.();
+    if (isDesktop) {
+      const cortask = (window as any).cortask;
+      cortask?.getVersion?.().then((v: string) => setAppVersion(v));
+      const cleanup = cortask?.updater?.onStatus((data: UpdateStatus) => {
+        setUpdateStatus(data);
+      });
+      return () => cleanup?.();
+    } else {
+      // Web mode: fetch version from health endpoint
+      fetch("/api/health").then(r => r.json()).then((data: { version: string }) => {
+        setAppVersion(data.version);
+      }).catch(() => {});
+    }
   }, []);
 
   const checkForUpdates = async () => {
-    setUpdateStatus({ status: "checking" });
-    try {
-      const cortask = (window as any).cortask;
-      await cortask?.updater?.check();
-    } catch {
-      setUpdateStatus({ status: "error", error: "Failed to check for updates" });
+    if (isDesktop) {
+      setUpdateStatus({ status: "checking" });
+      try {
+        const cortask = (window as any).cortask;
+        await cortask?.updater?.check();
+      } catch {
+        setUpdateStatus({ status: "error", error: "Failed to check for updates" });
+      }
+    } else {
+      setUpdateStatus({ status: "checking" });
+      try {
+        const info = await api.updates.check();
+        setWebUpdateInfo(info);
+        setAppVersion(info.currentVersion);
+        setUpdateStatus({ status: info.hasUpdate ? "available" : "up-to-date", version: info.latestVersion ?? undefined });
+      } catch {
+        setUpdateStatus({ status: "error", error: "Failed to check for updates" });
+      }
     }
   };
 
@@ -1241,19 +1260,29 @@ export function SettingsPage() {
                   )}
 
                   {updateStatus.status === "available" && (
-                    <div className="flex items-center justify-between rounded-md border p-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">
-                          Version {updateStatus.version} available
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          A new version is ready to download.
-                        </p>
+                    <div className="rounded-md border p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">
+                            Version {updateStatus.version} available
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {isDesktop ? "A new version is ready to download." : "A new version is available."}
+                          </p>
+                        </div>
+                        {isDesktop && (
+                          <Button size="sm" onClick={downloadUpdate}>
+                            <Download className="mr-1.5 h-3.5 w-3.5" />
+                            Download
+                          </Button>
+                        )}
                       </div>
-                      <Button size="sm" onClick={downloadUpdate}>
-                        <Download className="mr-1.5 h-3.5 w-3.5" />
-                        Download
-                      </Button>
+                      {!isDesktop && (
+                        <div className="rounded-md bg-muted p-3 space-y-1">
+                          <p className="text-xs font-medium">Update via CLI:</p>
+                          <code className="text-xs font-mono text-muted-foreground">npm update -g cortask</code>
+                        </div>
+                      )}
                     </div>
                   )}
 
