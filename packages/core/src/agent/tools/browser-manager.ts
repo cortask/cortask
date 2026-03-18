@@ -19,22 +19,9 @@ function getNativeBinName(): string | null {
 }
 
 function resolveCmd(): string {
-  const nativeBin = getNativeBinName();
-
-  // Check Electron extraResources first (packaged desktop app)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resourcesPath = (process as any).resourcesPath as string | undefined;
-  if (resourcesPath && nativeBin) {
-    const path = require("node:path") as typeof import("node:path");
-    const fs = require("node:fs") as typeof import("node:fs");
-    const candidate = path.join(resourcesPath, "agent-browser", nativeBin);
-    if (fs.existsSync(candidate)) return candidate;
-  }
-
   try {
     const require = createRequire(import.meta.url);
-    // Prefer platform-specific native binary (works inside Electron where
-    // process.execPath is the Electron binary, not Node.js)
+    const nativeBin = getNativeBinName();
     if (nativeBin) {
       try {
         return require.resolve(`agent-browser/bin/${nativeBin}`);
@@ -67,12 +54,9 @@ export interface BrowserInstance {
 }
 
 let instance: BrowserInstance | null = null;
-let _available: boolean | null = null;
 
 function exec(args: string[], timeout = DEFAULT_TIMEOUT): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Native binaries run directly; .js scripts need a Node runtime.
-    // process.execPath may be Electron, so only use it as a last resort.
     const isScript = CMD.endsWith(".js");
     const cmd = isScript ? (process.env.NODE_PATH_BIN || process.execPath) : CMD;
     const finalArgs = isScript ? [CMD, ...args] : args;
@@ -87,29 +71,36 @@ function exec(args: string[], timeout = DEFAULT_TIMEOUT): Promise<string> {
   });
 }
 
-function execJson(args: string[], timeout = DEFAULT_TIMEOUT): Promise<unknown> {
-  return exec([...args, "--json"], timeout).then((out) => {
-    try {
-      return JSON.parse(out);
-    } catch {
-      return out;
-    }
-  });
-}
-
 export async function isAgentBrowserAvailable(): Promise<boolean> {
-  if (_available !== null) return _available;
   try {
     await exec(["--version"], 5000);
-    _available = true;
+    return true;
   } catch {
-    _available = false;
+    return false;
   }
-  return _available;
+}
+
+let _installed = false;
+
+async function ensureInstalled(): Promise<void> {
+  if (_installed) return;
+  try {
+    await exec(["--version"], 5000);
+  } catch {
+    throw new Error("agent-browser is not installed. Run: npm install -g agent-browser");
+  }
+  // Run install to download Chromium if not already present
+  try {
+    await exec(["install"], 120_000);
+  } catch {
+    // install may fail if browsers already exist — that's fine
+  }
+  _installed = true;
 }
 
 export async function ensureBrowser(): Promise<BrowserInstance> {
   if (instance) return instance;
+  await ensureInstalled();
 
   const inst: BrowserInstance = {
     async run(args: string[]) {
@@ -181,10 +172,7 @@ export async function ensureBrowser(): Promise<BrowserInstance> {
     },
 
     async wait(target: string) {
-      // If numeric, wait for milliseconds; otherwise wait for selector
-      if (/^\d+$/.test(target)) {
-        await exec(["wait", target]);
-      } else if (target.startsWith("http")) {
+      if (target.startsWith("http")) {
         await exec(["wait", "--url", target]);
       } else {
         await exec(["wait", target]);

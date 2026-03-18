@@ -1,7 +1,7 @@
 import type { ToolHandler, ToolExecutionContext } from "../types.js";
 import type { ToolResult } from "../../providers/types.js";
 import type { ArtifactStore } from "../../artifacts/store.js";
-import { ensureBrowser, closeBrowser, isAgentBrowserAvailable } from "./browser-manager.js";
+import { ensureBrowser, closeBrowser } from "./browser-manager.js";
 
 const MAX_CONTENT = 50_000;
 
@@ -88,16 +88,6 @@ export function createBrowserTool(artifactStore: ArtifactStore): ToolHandler {
       args: Record<string, unknown>,
       _context: ToolExecutionContext,
     ): Promise<ToolResult> {
-      const available = await isAgentBrowserAvailable();
-      if (!available) {
-        return {
-          toolCallId: "",
-          content:
-            "agent-browser is not installed. Run: npm install -g agent-browser && agent-browser install",
-          isError: true,
-        };
-      }
-
       const action = args.action as string;
 
       if (action === "close") {

@@ -13,7 +13,7 @@
     "build": "tsup",
     "dev": "bash -c \"unset ELECTRON_RUN_AS_NODE && electron .\"",
     "rebuild": "node scripts/rebuild-native.js",
-    "prepackage": "pnpm run rebuild && node scripts/copy-agent-browser.js",
+    "prepackage": "pnpm run rebuild",
     "package": "electron-builder --config electron-builder.yml",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist release"
