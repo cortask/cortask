@@ -19,11 +19,22 @@ function getNativeBinName(): string | null {
 }
 
 function resolveCmd(): string {
+  const nativeBin = getNativeBinName();
+
+  // Check Electron extraResources first (packaged desktop app)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resourcesPath = (process as any).resourcesPath as string | undefined;
+  if (resourcesPath && nativeBin) {
+    const path = require("node:path") as typeof import("node:path");
+    const fs = require("node:fs") as typeof import("node:fs");
+    const candidate = path.join(resourcesPath, "agent-browser", nativeBin);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
   try {
     const require = createRequire(import.meta.url);
     // Prefer platform-specific native binary (works inside Electron where
     // process.execPath is the Electron binary, not Node.js)
-    const nativeBin = getNativeBinName();
     if (nativeBin) {
       try {
         return require.resolve(`agent-browser/bin/${nativeBin}`);

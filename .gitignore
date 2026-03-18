@@ -5,6 +5,7 @@ node_modules/
 dist/
 build/
 !packages/desktop/build/
+packages/desktop/build/agent-browser-bin/
 .next/
 out/
 release/
