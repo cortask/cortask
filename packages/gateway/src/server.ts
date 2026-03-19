@@ -529,58 +529,78 @@ export async function startServer(port?: number, host?: string) {
   // Start cron service
   cronService.start();
 
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", (err: NodeJS.ErrnoException) => {
-      reject(err);
-    });
-
-    server.listen(finalPort, finalHost, () => {
-      logger.info(
-        `Gateway running on http://${finalHost}:${finalPort}`,
-        "gateway",
-      );
-      console.log(`Cortask gateway running on http://${finalHost}:${finalPort}`);
-
-      // Prepare gateway: install browser, start channels, then mark ready
-      (async () => {
-        try {
-          await ensureBrowserInstalled();
-        } catch (err) {
-          logger.debug(`Browser pre-install skipped: ${err instanceof Error ? err.message : err}`, "gateway");
-        }
-        gatewayReady = true;
-        logger.info("Gateway ready", "gateway");
-      })();
-
-      // Auto-start channels that were previously enabled
-      const knownChannelIds = ["telegram", "discord", "whatsapp"];
-      for (const id of knownChannelIds) {
-        credentialStore.get(`channel.${id}.enabled`).then(async (enabled) => {
-          if (enabled !== "true") return;
-          try {
-            let channel = channels.get(id);
-            if (!channel) {
-              const created = await createChannelAdapter(id);
-              if (!created) return;
-              channel = created;
-              channels.set(id, channel);
-            }
-            await channel.start();
-            logger.info(`Channel "${id}" auto-started`, "gateway");
-          } catch (err) {
-            logger.error(`Failed to auto-start channel "${id}": ${err}`, "gateway");
+  // Try up to 10 ports starting from finalPort
+  let actualPort = finalPort;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", (err: NodeJS.ErrnoException) => {
+          if (err.code === "EADDRINUSE") {
+            server.removeAllListeners("error");
+            reject(err);
+          } else {
+            reject(err);
           }
         });
+
+        server.listen(actualPort, finalHost, () => {
+          server.removeAllListeners("error");
+          resolve();
+        });
+      });
+      break; // success
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "EADDRINUSE" && attempt < 9) {
+        logger.info(`Port ${actualPort} in use, trying ${actualPort + 1}`, "gateway");
+        actualPort++;
+        continue;
       }
+      throw err;
+    }
+  }
 
-      // Cleanup completed subagent records every 10 minutes
-      setInterval(() => {
-        cleanupSubagentRecords(30 * 60 * 1000); // 30 min TTL
-      }, 10 * 60 * 1000);
+  logger.info(
+    `Gateway running on http://${finalHost}:${actualPort}`,
+    "gateway",
+  );
+  console.log(`Cortask gateway running on http://${finalHost}:${actualPort}`);
 
-      resolve();
+  // Prepare gateway: install browser, start channels, then mark ready
+  (async () => {
+    try {
+      await ensureBrowserInstalled();
+    } catch (err) {
+      logger.debug(`Browser pre-install skipped: ${err instanceof Error ? err.message : err}`, "gateway");
+    }
+    gatewayReady = true;
+    logger.info("Gateway ready", "gateway");
+  })();
+
+  // Auto-start channels that were previously enabled
+  const knownChannelIds = ["telegram", "discord", "whatsapp"];
+  for (const id of knownChannelIds) {
+    credentialStore.get(`channel.${id}.enabled`).then(async (enabled) => {
+      if (enabled !== "true") return;
+      try {
+        let channel = channels.get(id);
+        if (!channel) {
+          const created = await createChannelAdapter(id);
+          if (!created) return;
+          channel = created;
+          channels.set(id, channel);
+        }
+        await channel.start();
+        logger.info(`Channel "${id}" auto-started`, "gateway");
+      } catch (err) {
+        logger.error(`Failed to auto-start channel "${id}": ${err}`, "gateway");
+      }
     });
-  });
+  }
+
+  // Cleanup completed subagent records every 10 minutes
+  setInterval(() => {
+    cleanupSubagentRecords(30 * 60 * 1000); // 30 min TTL
+  }, 10 * 60 * 1000);
 
   return { server, wss, ctx };
 }
