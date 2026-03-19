@@ -14,6 +14,8 @@ extraResources:
       to: skills
     - from: build/icon.png
       to: icon.png
+    - from: ../core/node_modules/agent-browser/bin/
+      to: agent-browser
 publish:
     provider: github
     owner: cortask

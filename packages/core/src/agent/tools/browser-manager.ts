@@ -3,6 +3,8 @@
 // The daemon persists between commands so the browser stays open.
 
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { createRequire } from "node:module";
 
 const DEFAULT_TIMEOUT = 30_000;
@@ -19,9 +21,18 @@ function getNativeBinName(): string | null {
 }
 
 function resolveCmd(): string {
+  const nativeBin = getNativeBinName();
+
+  // Check Electron extraResources (packaged desktop app)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resourcesPath = (process as any).resourcesPath as string | undefined;
+  if (resourcesPath && nativeBin) {
+    const candidate = join(resourcesPath, "agent-browser", nativeBin);
+    if (existsSync(candidate)) return candidate;
+  }
+
   try {
     const require = createRequire(import.meta.url);
-    const nativeBin = getNativeBinName();
     if (nativeBin) {
       try {
         return require.resolve(`agent-browser/bin/${nativeBin}`);
@@ -55,6 +66,11 @@ export interface BrowserInstance {
 
 let instance: BrowserInstance | null = null;
 
+/** Reset the cached instance so the next ensureBrowser() creates a fresh one. */
+export function resetBrowserInstance(): void {
+  instance = null;
+}
+
 function exec(args: string[], timeout = DEFAULT_TIMEOUT): Promise<string> {
   return new Promise((resolve, reject) => {
     const isScript = CMD.endsWith(".js");
@@ -82,7 +98,7 @@ export async function isAgentBrowserAvailable(): Promise<boolean> {
 
 let _installed = false;
 
-async function ensureInstalled(): Promise<void> {
+export async function ensureInstalled(): Promise<void> {
   if (_installed) return;
   try {
     await exec(["--version"], 5000);
@@ -101,6 +117,9 @@ async function ensureInstalled(): Promise<void> {
 export async function ensureBrowser(): Promise<BrowserInstance> {
   if (instance) return instance;
   await ensureInstalled();
+
+  // Kill any stale daemon left over from a previous session
+  await exec(["close"], 5000).catch(() => {});
 
   const inst: BrowserInstance = {
     async run(args: string[]) {

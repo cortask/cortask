@@ -1,7 +1,7 @@
 import type { ToolHandler, ToolExecutionContext } from "../types.js";
 import type { ToolResult } from "../../providers/types.js";
 import type { ArtifactStore } from "../../artifacts/store.js";
-import { ensureBrowser, closeBrowser } from "./browser-manager.js";
+import { ensureBrowser, closeBrowser, resetBrowserInstance } from "./browser-manager.js";
 
 const MAX_CONTENT = 50_000;
 
@@ -95,7 +95,7 @@ export function createBrowserTool(artifactStore: ArtifactStore): ToolHandler {
         return { toolCallId: "", content: "Browser closed." };
       }
 
-      try {
+      const executeAction = async (): Promise<ToolResult> => {
         const browser = await ensureBrowser();
 
         switch (action) {
@@ -293,10 +293,29 @@ export function createBrowserTool(artifactStore: ArtifactStore): ToolHandler {
               isError: true,
             };
         }
+      };
+
+      try {
+        return await executeAction();
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Stale daemon — reset and retry once
+        if (msg.includes("has been closed") || msg.includes("Target page")) {
+          await closeBrowser().catch(() => {});
+          resetBrowserInstance();
+          try {
+            return await executeAction();
+          } catch (retryErr) {
+            return {
+              toolCallId: "",
+              content: `Browser error (after retry): ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+              isError: true,
+            };
+          }
+        }
         return {
           toolCallId: "",
-          content: `Browser error: ${err instanceof Error ? err.message : String(err)}`,
+          content: `Browser error: ${msg}`,
           isError: true,
         };
       }

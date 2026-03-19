@@ -45,6 +45,7 @@ export {
 export { createCronTool } from "./cron.js";
 export { createArtifactTool } from "./artifact.js";
 export { createBrowserTool } from "./browser.js";
+export { ensureInstalled as ensureBrowserInstalled } from "./browser-manager.js";
 export { createSubagentTool, setSubagentRunner } from "./subagent.js";
 export { createSwitchWorkspaceTool } from "./switch-workspace.js";
 export { createSkillTool } from "./skill.js";

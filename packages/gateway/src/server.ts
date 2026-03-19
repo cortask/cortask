@@ -25,6 +25,7 @@ import {
   createCronTool,
   createArtifactTool,
   createBrowserTool,
+  ensureBrowserInstalled,
   createSubagentTool,
   createSwitchWorkspaceTool,
   createSkillTool,
@@ -538,6 +539,11 @@ export async function startServer(port?: number, host?: string) {
         "gateway",
       );
       console.log(`Cortask gateway running on http://${finalHost}:${finalPort}`);
+
+      // Pre-install browser (downloads Chromium if needed) so it's ready on first use
+      ensureBrowserInstalled().catch((err) => {
+        logger.debug(`Browser pre-install skipped: ${err instanceof Error ? err.message : err}`, "gateway");
+      });
 
       // Auto-start channels that were previously enabled
       const knownChannelIds = ["telegram", "discord", "whatsapp"];
