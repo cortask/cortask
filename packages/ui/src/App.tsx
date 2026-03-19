@@ -16,10 +16,34 @@ export function App() {
   const fetchWorkspaces = useWorkspaceStore((s) => s.fetchWorkspaces);
   const navigate = useNavigate();
   const location = useLocation();
+  const [preparing, setPreparing] = useState(true);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
 
+  // Wait for the gateway to be fully ready (browser installed, etc.)
   useEffect(() => {
+    let cancelled = false;
+    async function waitForReady() {
+      while (!cancelled) {
+        try {
+          const res = await fetch("/api/health");
+          const data = await res.json();
+          if (data.ready) {
+            setPreparing(false);
+            return;
+          }
+        } catch {
+          // gateway not up yet
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+    waitForReady();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (preparing) return;
     async function checkOnboarding() {
       try {
         const status = await api.onboarding.status();
@@ -37,7 +61,7 @@ export function App() {
     }
 
     checkOnboarding();
-  }, [navigate, location.pathname]);
+  }, [preparing, navigate, location.pathname]);
 
   useEffect(() => {
     if (isOnboarded) {
@@ -47,10 +71,12 @@ export function App() {
     }
   }, [fetchWorkspaces, isOnboarded]);
 
-  if (checkingOnboarding) {
+  if (preparing || checkingOnboarding) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-muted-foreground">
+          {preparing ? "Cortask is being prepared..." : "Loading..."}
+        </div>
       </div>
     );
   }

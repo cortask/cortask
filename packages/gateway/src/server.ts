@@ -436,8 +436,9 @@ export async function startServer(port?: number, host?: string) {
   app.use("/api/artifacts", createArtifactRoutes(artifactStore));
 
   // Health check
+  let gatewayReady = false;
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", version: PKG_VERSION });
+    res.json({ status: "ok", version: PKG_VERSION, ready: gatewayReady });
   });
 
   // Update check
@@ -540,10 +541,16 @@ export async function startServer(port?: number, host?: string) {
       );
       console.log(`Cortask gateway running on http://${finalHost}:${finalPort}`);
 
-      // Pre-install browser (downloads Chromium if needed) so it's ready on first use
-      ensureBrowserInstalled().catch((err) => {
-        logger.debug(`Browser pre-install skipped: ${err instanceof Error ? err.message : err}`, "gateway");
-      });
+      // Prepare gateway: install browser, start channels, then mark ready
+      (async () => {
+        try {
+          await ensureBrowserInstalled();
+        } catch (err) {
+          logger.debug(`Browser pre-install skipped: ${err instanceof Error ? err.message : err}`, "gateway");
+        }
+        gatewayReady = true;
+        logger.info("Gateway ready", "gateway");
+      })();
 
       // Auto-start channels that were previously enabled
       const knownChannelIds = ["telegram", "discord", "whatsapp"];

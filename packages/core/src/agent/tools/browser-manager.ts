@@ -67,11 +67,6 @@ export interface BrowserInstance {
 
 let instance: BrowserInstance | null = null;
 
-/** Reset the cached instance so the next ensureBrowser() creates a fresh one. */
-export function resetBrowserInstance(): void {
-  instance = null;
-}
-
 function getAgentBrowserHome(): string {
   if (process.env.AGENT_BROWSER_HOME) return process.env.AGENT_BROWSER_HOME;
   const dir = join(homedir(), ".agent-browser");
