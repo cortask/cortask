@@ -3,8 +3,9 @@
 // The daemon persists between commands so the browser stays open.
 
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import { createRequire } from "node:module";
 
 const DEFAULT_TIMEOUT = 30_000;
@@ -71,12 +72,20 @@ export function resetBrowserInstance(): void {
   instance = null;
 }
 
+function getAgentBrowserHome(): string {
+  if (process.env.AGENT_BROWSER_HOME) return process.env.AGENT_BROWSER_HOME;
+  const dir = join(homedir(), ".agent-browser");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 function exec(args: string[], timeout = DEFAULT_TIMEOUT): Promise<string> {
   return new Promise((resolve, reject) => {
     const isScript = CMD.endsWith(".js");
     const cmd = isScript ? (process.env.NODE_PATH_BIN || process.execPath) : CMD;
     const finalArgs = isScript ? [CMD, ...args] : args;
-    execFile(cmd, finalArgs, { timeout, maxBuffer: 5 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const env = { ...process.env, AGENT_BROWSER_HOME: getAgentBrowserHome() };
+    execFile(cmd, finalArgs, { timeout, maxBuffer: 5 * 1024 * 1024, env }, (err, stdout, stderr) => {
       if (err) {
         const msg = stderr?.trim() || stdout?.trim() || err.message;
         reject(new Error(msg));
