@@ -529,35 +529,29 @@ export async function startServer(port?: number, host?: string) {
   // Start cron service
   cronService.start();
 
-  // Try up to 10 ports starting from finalPort
+  // Find an available port (try up to 10 starting from finalPort)
   let actualPort = finalPort;
   for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        server.once("error", (err: NodeJS.ErrnoException) => {
-          if (err.code === "EADDRINUSE") {
-            server.removeAllListeners("error");
-            reject(err);
-          } else {
-            reject(err);
-          }
-        });
-
-        server.listen(actualPort, finalHost, () => {
-          server.removeAllListeners("error");
-          resolve();
-        });
+    const inUse = await new Promise<boolean>((resolve) => {
+      const tester = createServer();
+      tester.once("error", () => resolve(true));
+      tester.listen(actualPort, finalHost, () => {
+        tester.close(() => resolve(false));
       });
-      break; // success
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "EADDRINUSE" && attempt < 9) {
-        logger.info(`Port ${actualPort} in use, trying ${actualPort + 1}`, "gateway");
-        actualPort++;
-        continue;
-      }
-      throw err;
-    }
+    });
+    if (!inUse) break;
+    logger.info(`Port ${actualPort} in use, trying ${actualPort + 1}`, "gateway");
+    actualPort++;
+    if (attempt === 9) throw new Error(`No available port found (tried ${finalPort}-${actualPort})`);
   }
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(actualPort, finalHost, () => {
+      server.removeAllListeners("error");
+      resolve();
+    });
+  });
 
   logger.info(
     `Gateway running on http://${finalHost}:${actualPort}`,
