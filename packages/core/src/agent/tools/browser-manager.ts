@@ -123,15 +123,14 @@ export async function ensureInstalled(): Promise<void> {
   } catch {
     // install may fail if browsers already exist — that's fine
   }
+  // install leaves a stale daemon — kill it so the next open starts clean
+  await exec(["close"], 5000).catch(() => {});
   _installed = true;
 }
 
 export async function ensureBrowser(): Promise<BrowserInstance> {
   if (instance) return instance;
   await ensureInstalled();
-
-  // Kill any stale daemon left over from a previous session
-  await exec(["close"], 5000).catch(() => {});
 
   const inst: BrowserInstance = {
     async run(args: string[]) {
