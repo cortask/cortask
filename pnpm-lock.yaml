@@ -134,6 +134,9 @@ importers:
       '@cortask/gateway':
         specifier: workspace:*
         version: link:../gateway
+      agent-browser:
+        specifier: ^0.17.0
+        version: 0.17.0
       better-sqlite3:
         specifier: ^11.7.0
         version: 11.10.0
