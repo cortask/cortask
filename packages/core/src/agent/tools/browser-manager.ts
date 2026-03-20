@@ -85,7 +85,10 @@ function exec(args: string[], timeout = DEFAULT_TIMEOUT): Promise<string> {
     const isScript = CMD.endsWith(".js");
     const cmd = isScript ? (process.env.NODE_PATH_BIN || process.execPath) : CMD;
     const finalArgs = isScript ? [CMD, ...args] : args;
-    execFile(cmd, finalArgs, { timeout, maxBuffer: 5 * 1024 * 1024 }, (err, stdout, stderr) => {
+    // Explicitly pass env to ensure AGENT_BROWSER_HOME and clean ELECTRON vars
+    const env = { ...process.env };
+    delete env.ELECTRON_RUN_AS_NODE;
+    execFile(cmd, finalArgs, { timeout, maxBuffer: 5 * 1024 * 1024, env }, (err, stdout, stderr) => {
       if (err) {
         const msg = stderr?.trim() || stdout?.trim() || err.message;
         reject(new Error(msg));
