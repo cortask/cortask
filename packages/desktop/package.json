@@ -19,10 +19,10 @@
     "clean": "rm -rf dist release"
   },
   "dependencies": {
+    "@cortask/channels": "workspace:*",
     "@cortask/core": "workspace:*",
     "@cortask/gateway": "workspace:*",
-    "@cortask/channels": "workspace:*",
-    "agent-browser": "^0.17.0",
+    "agent-browser": "^0.21.2",
     "better-sqlite3": "^11.7.0",
     "electron-updater": "^6.3.0"
   },

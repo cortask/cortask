@@ -1,4 +1,4 @@
 packages:
   - packages/*
 
-onlyBuiltDependencies: agent-browser
+onlyBuiltDependencies: agent-browser,better-sqlite3

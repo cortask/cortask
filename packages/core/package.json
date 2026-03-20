@@ -8,7 +8,9 @@
     "url": "https://github.com/cortask/cortask.git",
     "directory": "packages/core"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -27,7 +29,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@google/generative-ai": "^0.21.0",
-    "agent-browser": "^0.17.0",
+    "agent-browser": "^0.21.2",
     "better-sqlite3": "^11.7.0",
     "croner": "^10.0.0",
     "exceljs": "^4.4.0",
