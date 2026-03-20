@@ -8,6 +8,7 @@ import { ChannelsPage } from "@/pages/Channels";
 import { CronPage } from "@/pages/Cron";
 import { SettingsPage } from "@/pages/Settings";
 import { OnboardingPage } from "@/pages/Onboarding";
+import { PreparingScreen } from "@/components/PreparingScreen";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { wsClient } from "@/lib/ws";
 import { api } from "@/lib/api";
@@ -16,11 +17,11 @@ export function App() {
   const fetchWorkspaces = useWorkspaceStore((s) => s.fetchWorkspaces);
   const navigate = useNavigate();
   const location = useLocation();
-  const [preparing, setPreparing] = useState(true);
+  const [gatewayReady, setGatewayReady] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
 
-  // Wait for the gateway to be fully ready (browser installed, etc.)
+  // Poll gateway readiness in the background (browser install, etc.)
   useEffect(() => {
     let cancelled = false;
     async function waitForReady() {
@@ -29,7 +30,7 @@ export function App() {
           const res = await fetch("/api/health");
           const data = await res.json();
           if (data.ready) {
-            setPreparing(false);
+            setGatewayReady(true);
             return;
           }
         } catch {
@@ -42,43 +43,49 @@ export function App() {
     return () => { cancelled = true; };
   }, []);
 
+  // Check onboarding as soon as the gateway responds (doesn't need ready=true)
   useEffect(() => {
-    if (preparing) return;
+    let cancelled = false;
     async function checkOnboarding() {
-      try {
-        const status = await api.onboarding.status();
-        setIsOnboarded(status.completed);
-
-        // Redirect to onboarding if not completed
-        if (!status.completed && location.pathname !== "/onboarding") {
-          navigate("/onboarding", { replace: true });
+      while (!cancelled) {
+        try {
+          const status = await api.onboarding.status();
+          setIsOnboarded(status.completed);
+          if (!status.completed && location.pathname !== "/onboarding") {
+            navigate("/onboarding", { replace: true });
+          }
+          setCheckingOnboarding(false);
+          return;
+        } catch {
+          // gateway not responding yet, retry
         }
-      } catch (err) {
-        console.error("Failed to check onboarding status:", err);
-      } finally {
-        setCheckingOnboarding(false);
+        await new Promise((r) => setTimeout(r, 500));
       }
     }
-
     checkOnboarding();
-  }, [preparing, navigate, location.pathname]);
+    return () => { cancelled = true; };
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
-    if (isOnboarded) {
+    if (isOnboarded && gatewayReady) {
       wsClient.connect();
       fetchWorkspaces();
       return () => wsClient.disconnect();
     }
-  }, [fetchWorkspaces, isOnboarded]);
+  }, [fetchWorkspaces, isOnboarded, gatewayReady]);
 
-  if (preparing || checkingOnboarding) {
+  // Show onboarding immediately (don't wait for gateway ready)
+  if (!checkingOnboarding && !isOnboarded) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-muted-foreground">
-          {preparing ? "Cortask is being prepared..." : "Loading..."}
-        </div>
-      </div>
+      <Routes>
+        <Route path="*" element={<OnboardingPage />} />
+      </Routes>
     );
+  }
+
+  // After onboarding, wait for gateway to be fully ready
+  if (!gatewayReady || checkingOnboarding) {
+    return <PreparingScreen />;
   }
 
   return (

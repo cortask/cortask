@@ -67,7 +67,7 @@ export function OnboardingPage() {
     return (
         <div className="flex h-screen items-center justify-center bg-background p-4">
             <div
-                className="fixed top-0 left-0 right-0 h-10 z-50"
+                className="fixed top-0 left-0 right-0 h-10 z-50 flex justify-end"
                 style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
             >
                 <WindowControls />
