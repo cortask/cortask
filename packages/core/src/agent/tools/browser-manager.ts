@@ -118,14 +118,11 @@ export async function ensureInstalled(): Promise<void> {
   } catch {
     throw new Error("agent-browser is not installed. Run: npm install -g agent-browser");
   }
-  // Run install to download Chromium if not already present
-  try {
-    await exec(["install"], 120_000);
-  } catch {
-    // install may fail if browsers already exist — that's fine
-  }
-  // install leaves a stale daemon — kill it so the next open starts clean
-  await exec(["close"], 5000).catch(() => {});
+  // Download a browser if none is available (system Chrome is used as fallback).
+  // Run in background so it doesn't block startup.
+  exec(["install"], 120_000)
+    .then(() => exec(["close"], 5000).catch(() => {}))
+    .catch(() => {});
   _installed = true;
 }
 
