@@ -67,20 +67,25 @@ export interface BrowserInstance {
 
 let instance: BrowserInstance | null = null;
 
-function getAgentBrowserHome(): string {
-  if (process.env.AGENT_BROWSER_HOME) return process.env.AGENT_BROWSER_HOME;
-  const dir = join(homedir(), ".agent-browser");
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  return dir;
+function ensureAgentBrowserHome(): string {
+  if (!process.env.AGENT_BROWSER_HOME) {
+    const dir = join(homedir(), ".agent-browser");
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    // Set globally so daemon subprocesses inherit it
+    process.env.AGENT_BROWSER_HOME = dir;
+  }
+  return process.env.AGENT_BROWSER_HOME;
 }
+
+// Set AGENT_BROWSER_HOME early so it's in process.env for all child processes
+ensureAgentBrowserHome();
 
 function exec(args: string[], timeout = DEFAULT_TIMEOUT): Promise<string> {
   return new Promise((resolve, reject) => {
     const isScript = CMD.endsWith(".js");
     const cmd = isScript ? (process.env.NODE_PATH_BIN || process.execPath) : CMD;
     const finalArgs = isScript ? [CMD, ...args] : args;
-    const env = { ...process.env, AGENT_BROWSER_HOME: getAgentBrowserHome() };
-    execFile(cmd, finalArgs, { timeout, maxBuffer: 5 * 1024 * 1024, env }, (err, stdout, stderr) => {
+    execFile(cmd, finalArgs, { timeout, maxBuffer: 5 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         const msg = stderr?.trim() || stdout?.trim() || err.message;
         reject(new Error(msg));
