@@ -8,7 +8,7 @@ interface WorkspaceState {
 
   fetchWorkspaces: () => Promise<void>;
   setActiveWorkspace: (workspace: Workspace) => void;
-  createWorkspace: (name: string) => Promise<Workspace>;
+  createWorkspace: (name: string, rootPath?: string) => Promise<Workspace>;
   deleteWorkspace: (id: string) => Promise<void>;
   reorderWorkspaces: (orderedIds: string[]) => Promise<void>;
 }
@@ -39,8 +39,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({ activeWorkspace: workspace });
   },
 
-  createWorkspace: async (name) => {
-    const workspace = await api.workspaces.create(name);
+  createWorkspace: async (name, rootPath) => {
+    const workspace = await api.workspaces.create(name, rootPath || undefined);
     set((s) => ({ workspaces: [workspace, ...s.workspaces] }));
     return workspace;
   },

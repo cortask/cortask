@@ -9,7 +9,7 @@ export function createConfigRoutes(ctx: GatewayContext): Router {
   router.get("/", (_req, res) => {
     try {
       const { agent, server, spending } = ctx.config;
-      res.json({ agent, server, spending });
+      res.json({ agent, server, spending, dataDir: ctx.dataDir });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

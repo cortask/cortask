@@ -384,6 +384,7 @@ export interface AppConfig {
     port: number;
     host: string;
   };
+  dataDir: string;
 }
 
 export interface UsageSummary {

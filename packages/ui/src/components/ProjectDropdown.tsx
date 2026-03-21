@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { api, type Workspace } from "@/lib/api";
 import {
@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, Plus, Check, Pencil } from "lucide-react";
+import { ChevronDown, Plus, Check, Pencil, FolderOpen } from "lucide-react";
 
 function basename(p: string): string {
   return p.replace(/\\/g, "/").split("/").filter(Boolean).pop() || p;
@@ -31,15 +31,30 @@ export function ProjectDropdown() {
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addName, setAddName] = useState("");
+  const [addRootPath, setAddRootPath] = useState("");
+  const [defaultProjectsDir, setDefaultProjectsDir] = useState("");
   const [editProject, setEditProject] = useState<Workspace | null>(null);
   const [editName, setEditName] = useState("");
 
+  const isDesktop = !!(window as any).cortask;
+
+  useEffect(() => {
+    api.config.get().then((cfg) => {
+      setDefaultProjectsDir(cfg.dataDir.replace(/\\/g, "/") + "/projects");
+    }).catch(() => {});
+  }, []);
+
   const handleAddProject = async () => {
     if (!addName.trim()) return;
-    const ws = await createWorkspace(addName.trim());
+    const ws = await createWorkspace(addName.trim(), addRootPath.trim() || undefined);
     setActiveWorkspace(ws);
+    closeAddDialog();
+  };
+
+  const closeAddDialog = () => {
     setAddDialogOpen(false);
     setAddName("");
+    setAddRootPath("");
   };
 
   const openEdit = (e: React.MouseEvent, ws: Workspace) => {
@@ -97,7 +112,7 @@ export function ProjectDropdown() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+      <Dialog open={addDialogOpen} onOpenChange={(open) => !open && closeAddDialog()}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>New Project</DialogTitle>
@@ -105,21 +120,51 @@ export function ProjectDropdown() {
               Give your project a name to get started.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="project-name">Name</Label>
-            <Input
-              id="project-name"
-              value={addName}
-              onChange={(e) => setAddName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAddProject();
-              }}
-              placeholder="My Project"
-              autoFocus
-            />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="project-name">Name</Label>
+              <Input
+                id="project-name"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddProject();
+                }}
+                placeholder="My Project"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-path">Folder</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="project-path"
+                  value={addRootPath}
+                  onChange={(e) => setAddRootPath(e.target.value)}
+                  placeholder={defaultProjectsDir || "Default location"}
+                  className="flex-1"
+                />
+                {isDesktop && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={async () => {
+                      const selected = await (window as any).cortask?.browseFolder?.();
+                      if (selected) setAddRootPath(selected);
+                    }}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use the default location.
+              </p>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+            <Button variant="outline" onClick={closeAddDialog}>
               Cancel
             </Button>
             <Button onClick={handleAddProject} disabled={!addName.trim()}>
