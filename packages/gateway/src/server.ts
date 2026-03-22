@@ -40,6 +40,8 @@ import {
   ModelStore,
   TemplateStore,
   MemoryManager,
+  createLocalEmbeddingProvider,
+  type LocalEmbeddingProvider,
   logger,
   type CortaskConfig,
   type ProviderId,
@@ -83,7 +85,8 @@ export interface GatewayContext {
   usageStore: UsageStore;
   modelStore: ModelStore;
   getSessionStore: (workspacePath: string) => SessionStore;
-  getMemoryManager: (workspacePath: string) => MemoryManager;
+  getMemoryManager: (workspacePath: string) => Promise<MemoryManager>;
+  invalidateMemoryManagers: () => void;
   createAgentRunner: (workspacePath: string, options?: AgentRunnerOptions) => Promise<AgentRunner>;
 }
 
@@ -98,16 +101,6 @@ function getSessionStore(workspacePath: string): SessionStore {
     sessionStoreCache.set(dbPath, store);
   }
   return store;
-}
-
-function getMemoryManager(workspacePath: string): MemoryManager {
-  const dbPath = path.join(workspacePath, ".cortask", "memory.db");
-  let manager = memoryManagerCache.get(dbPath);
-  if (!manager) {
-    manager = new MemoryManager({ dbPath });
-    memoryManagerCache.set(dbPath, manager);
-  }
-  return manager;
 }
 
 export async function startServer(port?: number, host?: string) {
@@ -141,6 +134,49 @@ export async function startServer(port?: number, host?: string) {
     path.join(dataDir, "credentials.enc.json"),
     secret,
   );
+
+  // Memory manager factory with embedding provider wiring
+  let localEmbedProvider: LocalEmbeddingProvider | null = null;
+  let localEmbedFailed = false;
+
+  async function getMemoryManager(workspacePath: string): Promise<MemoryManager> {
+    const mmDbPath = path.join(workspacePath, ".cortask", "memory.db");
+    let manager = memoryManagerCache.get(mmDbPath);
+    if (manager) return manager;
+
+    const embeddingProvider = config.memory?.embeddingProvider ?? "local";
+    const embeddingModel = config.memory?.embeddingModel;
+    let apiProvider: ReturnType<typeof createProvider> | undefined;
+
+    if (embeddingProvider === "local") {
+      if (!localEmbedProvider && !localEmbedFailed) {
+        try {
+          localEmbedProvider = await createLocalEmbeddingProvider();
+          logger.info("Local embedding provider initialized", "memory");
+        } catch (err) {
+          localEmbedFailed = true;
+          logger.debug(`Local embeddings unavailable: ${err instanceof Error ? err.message : err}`, "memory");
+        }
+      }
+    } else if (["openai", "google", "ollama"].includes(embeddingProvider)) {
+      const credKey = embeddingProvider === "ollama"
+        ? "provider.ollama.host"
+        : `provider.${embeddingProvider}.apiKey`;
+      const key = await credentialStore.get(credKey);
+      if (key) {
+        apiProvider = createProvider(embeddingProvider as ProviderId, key);
+      }
+    }
+
+    manager = new MemoryManager({
+      dbPath: mmDbPath,
+      localProvider: embeddingProvider === "local" ? localEmbedProvider ?? undefined : undefined,
+      apiProvider: apiProvider ?? undefined,
+      embeddingModel,
+    });
+    memoryManagerCache.set(mmDbPath, manager);
+    return manager;
+  }
 
   // Initialize cron service (uses central DB)
   const cronService = new CronService(dbPath);
@@ -273,7 +309,7 @@ export async function startServer(port?: number, host?: string) {
       ? [createSwitchWorkspaceTool(workspaceManager, channelCtx.chatKey)]
       : [];
 
-    const memoryManager = getMemoryManager(workspacePath);
+    const memoryManager = await getMemoryManager(workspacePath);
 
     const runner = new AgentRunner({
       config: {
@@ -352,6 +388,13 @@ export async function startServer(port?: number, host?: string) {
     modelStore,
     getSessionStore,
     getMemoryManager,
+    invalidateMemoryManagers: () => {
+      for (const mgr of memoryManagerCache.values()) mgr.close();
+      memoryManagerCache.clear();
+      localEmbedProvider?.dispose();
+      localEmbedProvider = null;
+      localEmbedFailed = false;
+    },
     createAgentRunner,
   };
 

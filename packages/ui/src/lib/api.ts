@@ -61,6 +61,15 @@ export const api = {
       request<MemoryEntry[]>(
         `/workspaces/${id}/memory/entries${limit ? `?limit=${limit}` : ""}`,
       ),
+    renameFile: (id: string, oldPath: string, newPath: string) =>
+      request<{ ok: boolean }>(`/workspaces/${id}/files/rename`, {
+        method: "PUT",
+        body: JSON.stringify({ oldPath, newPath }),
+      }),
+    deleteFile: (id: string, filePath: string) =>
+      request<{ ok: boolean }>(`/workspaces/${id}/files/${encodeURIComponent(filePath)}`, {
+        method: "DELETE",
+      }),
   },
 
   sessions: {

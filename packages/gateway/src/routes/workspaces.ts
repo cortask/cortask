@@ -167,7 +167,7 @@ export function createWorkspaceRoutes(ctx: GatewayContext): Router {
         return;
       }
       const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 5, 1), 50);
-      const manager = ctx.getMemoryManager(workspace.rootPath);
+      const manager = await ctx.getMemoryManager(workspace.rootPath);
       const results = await manager.search(query, limit);
       res.json(results);
     } catch (err) {
@@ -184,7 +184,7 @@ export function createWorkspaceRoutes(ctx: GatewayContext): Router {
         return;
       }
       const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
-      const manager = ctx.getMemoryManager(workspace.rootPath);
+      const manager = await ctx.getMemoryManager(workspace.rootPath);
       const entries = await manager.list(limit);
       res.json(entries);
     } catch (err) {
@@ -233,6 +233,74 @@ export function createWorkspaceRoutes(ctx: GatewayContext): Router {
 
       await walk(workspace.rootPath, "", 1);
       res.json({ tree: entries });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Rename a file in the workspace
+  router.put("/:id/files/rename", async (req, res) => {
+    try {
+      const workspace = await ctx.workspaceManager.get(req.params.id);
+      if (!workspace) {
+        res.status(404).json({ error: "Workspace not found" });
+        return;
+      }
+
+      const { oldPath, newPath } = req.body as { oldPath?: string; newPath?: string };
+      if (!oldPath || !newPath) {
+        res.status(400).json({ error: "oldPath and newPath are required" });
+        return;
+      }
+
+      const fullOld = path.resolve(workspace.rootPath, oldPath);
+      const fullNew = path.resolve(workspace.rootPath, newPath);
+
+      // Prevent directory traversal
+      if (!fullOld.startsWith(path.resolve(workspace.rootPath)) || !fullNew.startsWith(path.resolve(workspace.rootPath))) {
+        res.status(403).json({ error: "Path outside workspace" });
+        return;
+      }
+
+      // Ensure target directory exists
+      await fs.mkdir(path.dirname(fullNew), { recursive: true });
+      await fs.rename(fullOld, fullNew);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Delete a file or directory in the workspace
+  router.delete("/:id/files/*", async (req, res) => {
+    try {
+      const workspace = await ctx.workspaceManager.get(req.params.id);
+      if (!workspace) {
+        res.status(404).json({ error: "Workspace not found" });
+        return;
+      }
+
+      const relPath = (req.params as unknown as Record<string, string>)["0"];
+      if (!relPath) {
+        res.status(400).json({ error: "File path required" });
+        return;
+      }
+
+      const fullPath = path.resolve(workspace.rootPath, relPath);
+
+      // Prevent directory traversal
+      if (!fullPath.startsWith(path.resolve(workspace.rootPath))) {
+        res.status(403).json({ error: "Path outside workspace" });
+        return;
+      }
+
+      const stat = await fs.stat(fullPath);
+      if (stat.isDirectory()) {
+        await fs.rm(fullPath, { recursive: true });
+      } else {
+        await fs.unlink(fullPath);
+      }
+      res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

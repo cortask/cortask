@@ -18,6 +18,23 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,6 +51,7 @@ import {
   GripHorizontal,
   Search,
   Brain,
+  Trash2,
 } from "lucide-react";
 
 interface TreeEntry {
@@ -78,75 +96,132 @@ function FileTreeNode({
   workspaceId,
   selectedFiles,
   onToggle,
+  onRename,
+  onDelete,
 }: {
   node: TreeNode;
   workspaceId: string;
   selectedFiles: string[];
   onToggle: (path: string, ctrlKey: boolean) => void;
+  onRename: (path: string, name: string) => void;
+  onDelete: (path: string, name: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const preview = usePreviewStore((s) => s.open);
   const isSelected = selectedFiles.includes(node.entry.path);
+  const isFile = node.entry.type === "file";
+
+  const contextMenuItems = (
+    <>
+      {isFile && (
+        <>
+          <ContextMenuItem
+            onClick={() => {
+              const ext = getExtension(node.entry.name);
+              preview({
+                title: node.entry.name,
+                url: `/api/workspaces/${workspaceId}/files/${node.entry.path}`,
+                type: ext,
+              });
+            }}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      <ContextMenuItem onClick={() => onRename(node.entry.path, node.entry.name)}>
+        <Pencil className="h-3.5 w-3.5" />
+        Rename
+      </ContextMenuItem>
+      <ContextMenuItem
+        className="text-destructive focus:text-destructive"
+        onClick={() => onDelete(node.entry.path, node.entry.name)}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        Delete
+      </ContextMenuItem>
+    </>
+  );
 
   if (node.entry.type === "dir") {
     return (
-      <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-          {open ? (
-            <ChevronDown className="h-3 w-3 shrink-0" />
-          ) : (
-            <ChevronRight className="h-3 w-3 shrink-0" />
-          )}
-          {open ? (
-            <FolderOpen className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-          ) : (
-            <Folder className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-          )}
-          <span className="truncate">{node.entry.name}</span>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pl-3">
-          {node.children.map((child) => (
-            <FileTreeNode
-              key={child.entry.path}
-              node={child}
-              workspaceId={workspaceId}
-              selectedFiles={selectedFiles}
-              onToggle={onToggle}
-            />
-          ))}
-        </CollapsibleContent>
-      </Collapsible>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <Collapsible open={open} onOpenChange={setOpen}>
+              <CollapsibleTrigger className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                {open ? (
+                  <ChevronDown className="h-3 w-3 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                )}
+                {open ? (
+                  <FolderOpen className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                ) : (
+                  <Folder className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                )}
+                <span className="truncate">{node.entry.name}</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pl-3">
+                {node.children.map((child) => (
+                  <FileTreeNode
+                    key={child.entry.path}
+                    node={child}
+                    workspaceId={workspaceId}
+                    selectedFiles={selectedFiles}
+                    onToggle={onToggle}
+                    onRename={onRename}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-36">
+          {contextMenuItems}
+        </ContextMenuContent>
+      </ContextMenu>
     );
   }
 
   return (
-    <div
-      className={`group flex items-center gap-1 rounded px-1 py-0.5 text-xs cursor-pointer ${
-        isSelected
-          ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
-      }`}
-      onClick={(e) => onToggle(node.entry.path, e.ctrlKey || e.metaKey)}
-    >
-      <File className="h-3.5 w-3.5 shrink-0 ml-4" />
-      <span className="truncate flex-1">{node.entry.name}</span>
-      <button
-        type="button"
-        className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded hover:bg-accent shrink-0"
-        onClick={(e) => {
-          e.stopPropagation();
-          const ext = getExtension(node.entry.name);
-          preview({
-            title: node.entry.name,
-            url: `/api/workspaces/${workspaceId}/files/${node.entry.path}`,
-            type: ext,
-          });
-        }}
-        title="Preview"
-      >
-        <Eye className="h-3 w-3" />
-      </button>
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          className={`group flex items-center gap-1 rounded px-1 py-0.5 text-xs cursor-pointer ${
+            isSelected
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+          }`}
+          onClick={(e) => onToggle(node.entry.path, e.ctrlKey || e.metaKey)}
+        >
+          <File className="h-3.5 w-3.5 shrink-0 ml-4" />
+          <span className="truncate flex-1">{node.entry.name}</span>
+          <button
+            type="button"
+            className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded hover:bg-accent shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              const ext = getExtension(node.entry.name);
+              preview({
+                title: node.entry.name,
+                url: `/api/workspaces/${workspaceId}/files/${node.entry.path}`,
+                type: ext,
+              });
+            }}
+            title="Preview"
+          >
+            <Eye className="h-3 w-3" />
+          </button>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-36">
+        {contextMenuItems}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -279,6 +354,49 @@ export function WorkspaceSidebar({
     }
   };
 
+  // File rename/delete
+  const [renameTarget, setRenameTarget] = useState<{ path: string; name: string } | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ path: string; name: string } | null>(null);
+
+  const handleRenameStart = (filePath: string, fileName: string) => {
+    setRenameTarget({ path: filePath, name: fileName });
+    setRenameDraft(fileName);
+  };
+
+  const handleRenameConfirm = async () => {
+    if (!renameTarget || !renameDraft.trim() || renameDraft === renameTarget.name) {
+      setRenameTarget(null);
+      return;
+    }
+    const dir = renameTarget.path.includes("/")
+      ? renameTarget.path.substring(0, renameTarget.path.lastIndexOf("/") + 1)
+      : "";
+    try {
+      await api.workspaces.renameFile(workspace.id, renameTarget.path, dir + renameDraft.trim());
+      fetchTree();
+    } catch (err) {
+      console.error("Rename failed:", err);
+    }
+    setRenameTarget(null);
+  };
+
+  const handleDeleteStart = (filePath: string, fileName: string) => {
+    setDeleteTarget({ path: filePath, name: fileName });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.workspaces.deleteFile(workspace.id, deleteTarget.path);
+      onSelectedFilesChange(selectedFiles.filter((f) => f !== deleteTarget.path));
+      fetchTree();
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+    setDeleteTarget(null);
+  };
+
   // Memory (pinned notes)
   const [memory, setMemory] = useState<string | null>(null);
   const [memoryEditOpen, setMemoryEditOpen] = useState(false);
@@ -408,6 +526,8 @@ export function WorkspaceSidebar({
                     workspaceId={workspace.id}
                     selectedFiles={selectedFiles}
                     onToggle={handleFileToggle}
+                    onRename={handleRenameStart}
+                    onDelete={handleDeleteStart}
                   />
                 ))}
               </div>
@@ -579,6 +699,54 @@ export function WorkspaceSidebar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Rename File Dialog */}
+      <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rename File</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
+            autoFocus
+            className="font-mono text-sm"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRenameConfirm}
+              disabled={!renameDraft.trim() || renameDraft === renameTarget?.name}
+            >
+              Rename
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete File Alert Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete file</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-mono font-medium text-foreground">{deleteTarget?.name}</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteConfirm}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -40,6 +40,9 @@
     "openai": "^4.79.0",
     "zod": "^3.24.0"
   },
+  "optionalDependencies": {
+    "node-llama-cpp": "^3.0.0"
+  },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/node": "^22.0.0",

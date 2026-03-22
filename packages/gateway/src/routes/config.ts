@@ -72,11 +72,20 @@ export function createConfigRoutes(ctx: GatewayContext): Router {
       }
 
       if (memory) {
+        const providerChanged = memory.embeddingProvider !== undefined
+          && memory.embeddingProvider !== (ctx.config as any).memory?.embeddingProvider;
+        const modelChanged = memory.embeddingModel !== undefined
+          && memory.embeddingModel !== (ctx.config as any).memory?.embeddingModel;
+
         if (memory.embeddingProvider !== undefined) {
           (ctx.config as any).memory.embeddingProvider = memory.embeddingProvider;
         }
         if (memory.embeddingModel !== undefined) {
           (ctx.config as any).memory.embeddingModel = memory.embeddingModel;
+        }
+
+        if (providerChanged || modelChanged) {
+          ctx.invalidateMemoryManagers();
         }
       }
 
