@@ -6,7 +6,7 @@ import { bashTool } from "./bash.js";
 import { webFetchTool } from "./web-fetch.js";
 import { webSearchTool } from "./web-search.js";
 import { questionnaireTool } from "./questionnaire.js";
-import { memoryReadTool, memorySaveTool, memoryAppendTool } from "./memory.js";
+import { memoryReadTool, memorySaveTool, memoryAppendTool, memorySearchTool } from "./memory.js";
 import { showFileTool } from "./show-file.js";
 import { dataFileTool } from "./data-file.js";
 
@@ -22,6 +22,7 @@ export const builtinTools: ToolHandler[] = [
   memoryReadTool,
   memorySaveTool,
   memoryAppendTool,
+  memorySearchTool,
   showFileTool,
   dataFileTool,
 ];
@@ -38,6 +39,7 @@ export {
   memoryReadTool,
   memorySaveTool,
   memoryAppendTool,
+  memorySearchTool,
   showFileTool,
   dataFileTool,
 };

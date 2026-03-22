@@ -153,6 +153,45 @@ export function createWorkspaceRoutes(ctx: GatewayContext): Router {
     }
   });
 
+  // Search structured memory (SQLite)
+  router.get("/:id/memory/search", async (req, res) => {
+    try {
+      const workspace = await ctx.workspaceManager.get(req.params.id);
+      if (!workspace) {
+        res.status(404).json({ error: "Workspace not found" });
+        return;
+      }
+      const query = req.query.q as string;
+      if (!query) {
+        res.status(400).json({ error: "q query parameter required" });
+        return;
+      }
+      const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 5, 1), 50);
+      const manager = ctx.getMemoryManager(workspace.rootPath);
+      const results = await manager.search(query, limit);
+      res.json(results);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // List recent memory entries (SQLite)
+  router.get("/:id/memory/entries", async (req, res) => {
+    try {
+      const workspace = await ctx.workspaceManager.get(req.params.id);
+      if (!workspace) {
+        res.status(404).json({ error: "Workspace not found" });
+        return;
+      }
+      const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
+      const manager = ctx.getMemoryManager(workspace.rootPath);
+      const entries = await manager.list(limit);
+      res.json(entries);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // Recursive directory tree
   router.get("/:id/tree", async (req, res) => {
     try {

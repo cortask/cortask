@@ -39,6 +39,7 @@ import {
   UsageStore,
   ModelStore,
   TemplateStore,
+  MemoryManager,
   logger,
   type CortaskConfig,
   type ProviderId,
@@ -82,10 +83,12 @@ export interface GatewayContext {
   usageStore: UsageStore;
   modelStore: ModelStore;
   getSessionStore: (workspacePath: string) => SessionStore;
+  getMemoryManager: (workspacePath: string) => MemoryManager;
   createAgentRunner: (workspacePath: string, options?: AgentRunnerOptions) => Promise<AgentRunner>;
 }
 
 const sessionStoreCache = new Map<string, SessionStore>();
+const memoryManagerCache = new Map<string, MemoryManager>();
 
 function getSessionStore(workspacePath: string): SessionStore {
   const dbPath = path.join(workspacePath, ".cortask", "sessions.db");
@@ -95,6 +98,16 @@ function getSessionStore(workspacePath: string): SessionStore {
     sessionStoreCache.set(dbPath, store);
   }
   return store;
+}
+
+function getMemoryManager(workspacePath: string): MemoryManager {
+  const dbPath = path.join(workspacePath, ".cortask", "memory.db");
+  let manager = memoryManagerCache.get(dbPath);
+  if (!manager) {
+    manager = new MemoryManager({ dbPath });
+    memoryManagerCache.set(dbPath, manager);
+  }
+  return manager;
 }
 
 export async function startServer(port?: number, host?: string) {
@@ -260,6 +273,8 @@ export async function startServer(port?: number, host?: string) {
       ? [createSwitchWorkspaceTool(workspaceManager, channelCtx.chatKey)]
       : [];
 
+    const memoryManager = getMemoryManager(workspacePath);
+
     const runner = new AgentRunner({
       config: {
         provider,
@@ -268,6 +283,7 @@ export async function startServer(port?: number, host?: string) {
         temperature: config.agent.temperature,
         maxTokens: config.agent.maxTokens,
       },
+      memoryManager,
       tools: [
         ...(channelCtx
           ? builtinTools.filter((t) => !uiOnlyTools.has(t.definition.name))
@@ -335,6 +351,7 @@ export async function startServer(port?: number, host?: string) {
     usageStore,
     modelStore,
     getSessionStore,
+    getMemoryManager,
     createAgentRunner,
   };
 

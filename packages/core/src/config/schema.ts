@@ -32,6 +32,11 @@ const spendingLimitSchema = z.object({
   period: z.enum(["daily", "weekly", "monthly"]).default("monthly"),
 });
 
+const memoryConfigSchema = z.object({
+  embeddingProvider: z.enum(["local", "api"]).default("local"),
+  embeddingModel: z.string().optional(),
+});
+
 const serverConfigSchema = z.object({
   port: z.number().int().min(1).max(65535).default(3777),
   host: z.string().default("127.0.0.1"),
@@ -61,6 +66,7 @@ export const cortaskConfigSchema = z.object({
   spending: spendingLimitSchema.default({}),
   channels: channelsConfigSchema.default({}),
   skills: skillsConfigSchema.default({}),
+  memory: memoryConfigSchema.default({}),
   server: serverConfigSchema.default({}),
 });
 

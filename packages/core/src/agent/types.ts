@@ -1,4 +1,5 @@
 import type { ToolDefinition, ToolCall, ToolResult } from "../providers/types.js";
+import type { MemoryManager } from "../memory/manager.js";
 
 export interface Attachment {
   mimeType: string;
@@ -95,4 +96,5 @@ export interface ToolExecutionContext {
   requestQuestionnaire: (
     req: QuestionnaireRequest,
   ) => Promise<QuestionnaireResponse>;
+  memoryManager?: MemoryManager;
 }

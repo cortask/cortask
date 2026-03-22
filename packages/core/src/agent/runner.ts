@@ -20,6 +20,7 @@ import type {
   QuestionnaireRequest,
   QuestionnaireResponse,
 } from "./types.js";
+import type { MemoryManager } from "../memory/manager.js";
 import { buildSystemPrompt, type SystemPromptContext } from "./system-prompt.js";
 import { logger } from "../logging/logger.js";
 
@@ -162,6 +163,7 @@ export interface AgentRunnerDeps {
   getSkillPrompts: () => string[];
   getSessionMessages: (sessionId: string) => Promise<Message[]>;
   saveSessionMessages: (sessionId: string, messages: Message[]) => Promise<void>;
+  memoryManager?: MemoryManager;
   channel?: { type: string; chatId: string };
   onPermissionRequest?: (req: PermissionRequest) => Promise<boolean>;
   onQuestionnaireRequest?: (
@@ -219,6 +221,7 @@ export class AgentRunner {
         }
         return {};
       },
+      memoryManager: this.deps.memoryManager,
     };
   }
 

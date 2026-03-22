@@ -14,6 +14,7 @@ export default defineConfig([
       "better-sqlite3",
       "electron-updater",
       "agent-browser",
+      "node-llama-cpp",
       "playwright",
       "playwright-core",
       /^chromium-bidi/,

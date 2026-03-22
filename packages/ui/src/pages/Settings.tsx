@@ -40,6 +40,8 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
+  Brain,
+  AlertTriangle,
 } from "lucide-react";
 
 const isDesktop = !!(window as any).cortask;
@@ -48,11 +50,12 @@ const tabs = [
   { id: "agent", label: "Agent", icon: Bot },
   { id: "spending", label: "Spending", icon: Wallet },
   { id: "providers", label: "AI Providers", icon: Cpu },
+  { id: "memory", label: "Memory", icon: Brain },
   { id: "server", label: "Server", icon: Server },
   { id: "updates", label: "Updates", icon: Download },
 ] as const;
 
-type TabId = "agent" | "spending" | "providers" | "server" | "updates";
+type TabId = "agent" | "spending" | "providers" | "memory" | "server" | "updates";
 
 interface UpdateStatus {
   status: "idle" | "checking" | "available" | "up-to-date" | "downloading" | "downloaded" | "error";
@@ -390,6 +393,7 @@ export function SettingsPage() {
           period: configDraft.spending.period,
         },
         server: configDraft.server,
+        memory: configDraft.memory,
       };
       const updated = await api.config.update(payload as Partial<AppConfig>);
       setConfig(updated);
@@ -1320,6 +1324,75 @@ export function SettingsPage() {
                       {updateStatus.error ?? "An error occurred."}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {/* ─── Memory Settings ─── */}
+          {activeTab === "memory" && configDraft && (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Memory Settings</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Configure how the agent stores and searches memories.
+                  </p>
+                </div>
+                <SaveResetButtons />
+              </div>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Embedding Provider</CardTitle>
+                  <CardDescription>
+                    Choose how memory embeddings are generated for semantic search.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Select
+                    value={configDraft.memory?.embeddingProvider ?? "local"}
+                    onValueChange={(v) => updateDraft("memory.embeddingProvider", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="local">Local (Recommended)</SelectItem>
+                      <SelectItem value="api">API (uses configured AI provider)</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {(configDraft.memory?.embeddingProvider ?? "local") === "local" ? (
+                    <p className="text-xs text-muted-foreground">
+                      Uses a local embedding model (embeddinggemma-300m, ~300MB). Runs entirely on your machine — no API calls needed.
+                      The model is downloaded automatically on first use.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Uses your configured AI provider's embedding API. Note: Anthropic does not offer an embedding API — use OpenAI, Google, or Ollama instead.
+                    </p>
+                  )}
+
+                  <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-500" />
+                    <p className="text-xs text-muted-foreground">
+                      Changing the embedding provider will make existing embeddings incompatible. The embedding cache will be cleared, and memories will be re-embedded on next search.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-3 text-sm text-muted-foreground">
+                    <Brain className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      Memories are saved by the agent when it decides something is worth remembering.
+                      You can also browse and search memories from the sidebar in each workspace.
+                      Even without embeddings, keyword search (FTS) is always available.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </>

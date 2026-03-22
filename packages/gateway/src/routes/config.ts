@@ -8,8 +8,8 @@ export function createConfigRoutes(ctx: GatewayContext): Router {
   // GET /api/config — return current config (excluding sensitive fields)
   router.get("/", (_req, res) => {
     try {
-      const { agent, server, spending } = ctx.config;
-      res.json({ agent, server, spending, dataDir: ctx.dataDir });
+      const { agent, server, spending, memory } = ctx.config;
+      res.json({ agent, server, spending, memory, dataDir: ctx.dataDir });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
@@ -18,7 +18,7 @@ export function createConfigRoutes(ctx: GatewayContext): Router {
   // PUT /api/config — update config fields
   router.put("/", async (req, res) => {
     try {
-      const { agent, server, spending } = req.body as {
+      const { agent, server, spending, memory } = req.body as {
         agent?: { maxTurns?: number; temperature?: number; maxTokens?: number | null };
         server?: { port?: number; host?: string };
         spending?: {
@@ -26,6 +26,10 @@ export function createConfigRoutes(ctx: GatewayContext): Router {
           maxTokens?: number | null;
           maxCostUsd?: number | null;
           period?: "daily" | "weekly" | "monthly";
+        };
+        memory?: {
+          embeddingProvider?: "local" | "api";
+          embeddingModel?: string;
         };
       };
 
@@ -67,12 +71,22 @@ export function createConfigRoutes(ctx: GatewayContext): Router {
         }
       }
 
+      if (memory) {
+        if (memory.embeddingProvider !== undefined) {
+          (ctx.config as any).memory.embeddingProvider = memory.embeddingProvider;
+        }
+        if (memory.embeddingModel !== undefined) {
+          (ctx.config as any).memory.embeddingModel = memory.embeddingModel;
+        }
+      }
+
       await saveConfig(ctx.configPath, ctx.config);
 
       res.json({
         agent: ctx.config.agent,
         server: ctx.config.server,
         spending: ctx.config.spending,
+        memory: (ctx.config as any).memory,
       });
     } catch (err) {
       res.status(500).json({ error: String(err) });

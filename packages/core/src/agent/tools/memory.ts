@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { ToolHandler, ToolExecutionContext } from "../types.js";
@@ -90,6 +91,25 @@ export const memorySaveTool: ToolHandler = {
     const memoryPath = getMemoryPath(scope, context);
     await fs.mkdir(path.dirname(memoryPath), { recursive: true });
     await fs.writeFile(memoryPath, content, "utf-8");
+
+    // Also index into structured memory DB if available
+    if (context.memoryManager && scope === "project") {
+      try {
+        await context.memoryManager.index([
+          {
+            id: crypto.randomUUID(),
+            content,
+            source: "agent",
+            sessionId: context.sessionId,
+            createdAt: new Date().toISOString(),
+            metadata: { tool: "memory_save" },
+          },
+        ]);
+      } catch {
+        // DB indexing failed, file save succeeded — not critical
+      }
+    }
+
     return {
       toolCallId: "",
       content: `${scope === "global" ? "Global" : "Project"} memory saved (${content.length} chars)`,
@@ -101,7 +121,7 @@ export const memoryAppendTool: ToolHandler = {
   definition: {
     name: "memory_append",
     description:
-      "Append a note to long-term memory. Use scope 'global' for user preferences that apply across all projects, or 'project' (default) for project-specific context.",
+      "Append a note to long-term memory. Use scope 'global' for user preferences that apply across all projects, or 'project' (default) for project-specific context. The note is also indexed in the searchable memory database.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -147,9 +167,102 @@ export const memoryAppendTool: ToolHandler = {
 
     const updated = existing.trimEnd() + "\n\n" + note + "\n";
     await fs.writeFile(memoryPath, updated, "utf-8");
+
+    // Also index into structured memory DB if available
+    if (context.memoryManager && scope === "project") {
+      try {
+        await context.memoryManager.index([
+          {
+            id: crypto.randomUUID(),
+            content: note,
+            source: "agent",
+            sessionId: context.sessionId,
+            createdAt: new Date().toISOString(),
+            metadata: { tool: "memory_append" },
+          },
+        ]);
+      } catch {
+        // DB indexing failed, file append succeeded — not critical
+      }
+    }
+
     return {
       toolCallId: "",
       content: `Note appended to ${scope} memory.`,
     };
+  },
+};
+
+export const memorySearchTool: ToolHandler = {
+  definition: {
+    name: "memory_search",
+    description:
+      "Search long-term memory using semantic and keyword search. Returns the most relevant memories matching the query. Use this to recall previously saved context, decisions, or notes.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query to find relevant memories.",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of results to return (default: 5).",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  async execute(
+    args: Record<string, unknown>,
+    context: ToolExecutionContext,
+  ): Promise<ToolResult> {
+    const query = args.query as string;
+    if (!query) {
+      return {
+        toolCallId: "",
+        content: "Error: query is required",
+        isError: true,
+      };
+    }
+
+    if (!context.memoryManager) {
+      return {
+        toolCallId: "",
+        content: "Memory search is not available for this workspace.",
+      };
+    }
+
+    const limit = typeof args.limit === "number" ? args.limit : 5;
+
+    try {
+      const results = await context.memoryManager.search(query, limit);
+      if (results.length === 0) {
+        return {
+          toolCallId: "",
+          content: "No memories found matching the query.",
+        };
+      }
+
+      const formatted = results
+        .map((r, i) => {
+          const date = r.entry.createdAt
+            ? new Date(r.entry.createdAt).toLocaleDateString()
+            : "unknown";
+          return `${i + 1}. [${r.matchType}] (score: ${r.score.toFixed(3)}, ${date})\n${r.entry.content}`;
+        })
+        .join("\n\n");
+
+      return {
+        toolCallId: "",
+        content: `Found ${results.length} memories:\n\n${formatted}`,
+      };
+    } catch (err) {
+      return {
+        toolCallId: "",
+        content: `Memory search error: ${err instanceof Error ? err.message : String(err)}`,
+        isError: true,
+      };
+    }
   },
 };

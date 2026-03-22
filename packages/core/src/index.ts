@@ -106,6 +106,12 @@ export { MODEL_DEFINITIONS, getModelDefinitions } from "./models/definitions.js"
 export { TemplateStore } from "./templates/store.js";
 export type { PromptTemplate } from "./templates/store.js";
 
+// Memory
+export { MemoryManager } from "./memory/manager.js";
+export type { MemoryEntry, MemorySearchResult } from "./memory/types.js";
+export { createLocalEmbeddingProvider } from "./memory/embeddings-local.js";
+export type { LocalEmbeddingProvider } from "./memory/embeddings-local.js";
+
 // Logging
 export { logger } from "./logging/logger.js";
 export type { LogLevel } from "./logging/logger.js";

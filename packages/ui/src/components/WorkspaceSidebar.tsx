@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
-import { api, type Workspace, type CronJobWithState } from "@/lib/api";
+import { api, type Workspace, type CronJobWithState, type MemoryEntry, type MemorySearchResult } from "@/lib/api";
 import { onCronChange } from "@/lib/events";
 import { usePreviewStore } from "@/stores/previewStore";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   ChevronRight,
   ChevronDown,
@@ -31,6 +32,8 @@ import {
   Pencil,
   Plus,
   GripHorizontal,
+  Search,
+  Brain,
 } from "lucide-react";
 
 interface TreeEntry {
@@ -276,17 +279,52 @@ export function WorkspaceSidebar({
     }
   };
 
-  // Memory
+  // Memory (pinned notes)
   const [memory, setMemory] = useState<string | null>(null);
   const [memoryEditOpen, setMemoryEditOpen] = useState(false);
   const [memoryDraft, setMemoryDraft] = useState("");
+
+  // Memory search (structured DB)
+  const [memoryQuery, setMemoryQuery] = useState("");
+  const [memoryResults, setMemoryResults] = useState<MemorySearchResult[]>([]);
+  const [memoryEntries, setMemoryEntries] = useState<MemoryEntry[]>([]);
+  const [memorySearching, setMemorySearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     api.workspaces
       .readMemory(workspace.id)
       .then((r) => setMemory(r.content))
       .catch(() => {});
+    // Load recent entries
+    api.workspaces
+      .listMemoryEntries(workspace.id, 10)
+      .then(setMemoryEntries)
+      .catch(() => {});
   }, [workspace.id]);
+
+  // Debounced search
+  useEffect(() => {
+    if (!memoryQuery.trim()) {
+      setMemoryResults([]);
+      return;
+    }
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(async () => {
+      setMemorySearching(true);
+      try {
+        const results = await api.workspaces.searchMemory(workspace.id, memoryQuery.trim());
+        setMemoryResults(results);
+      } catch {
+        setMemoryResults([]);
+      } finally {
+        setMemorySearching(false);
+      }
+    }, 300);
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, [memoryQuery, workspace.id]);
 
   const handleMemoryEdit = () => {
     setMemoryDraft(memory ?? "");
@@ -298,6 +336,17 @@ export function WorkspaceSidebar({
     setMemory(memoryDraft);
     setMemoryEditOpen(false);
   };
+
+  function formatRelativeTime(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
 
   // Cron jobs
   const [cronJobs, setCronJobs] = useState<CronJobWithState[]>([]);
@@ -382,12 +431,69 @@ export function WorkspaceSidebar({
               size="icon"
               className="h-5 w-5"
               onClick={handleMemoryEdit}
+              title="Edit pinned notes"
             >
               <Pencil className="h-3 w-3" />
             </Button>
           </div>
+          <div className="px-3 pb-1">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={memoryQuery}
+                onChange={(e) => setMemoryQuery(e.target.value)}
+                placeholder="Search memories..."
+                className="h-7 pl-7 text-xs"
+              />
+            </div>
+          </div>
           <ScrollArea className="flex-1 min-h-0 px-3 pb-1">
-            {memory ? (
+            {memoryQuery.trim() ? (
+              // Search results
+              memorySearching ? (
+                <p className="text-xs text-muted-foreground px-1">Searching...</p>
+              ) : memoryResults.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {memoryResults.map((r) => (
+                    <li key={r.entry.id} className="rounded border border-border/50 px-2 py-1.5">
+                      <p className="text-xs text-foreground line-clamp-3">
+                        {r.entry.content}
+                      </p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[9px] px-1 py-0">
+                          {r.matchType}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          {r.score.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground ml-auto">
+                          {formatRelativeTime(r.entry.createdAt)}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground px-1">No results found.</p>
+              )
+            ) : memoryEntries.length > 0 ? (
+              // Recent entries
+              <ul className="space-y-1.5">
+                {memoryEntries.map((entry) => (
+                  <li key={entry.id} className="flex items-start gap-1.5 px-1">
+                    <Brain className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/60" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {entry.content}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground/60">
+                        {formatRelativeTime(entry.createdAt)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : memory ? (
               <p className="text-xs text-muted-foreground whitespace-pre-wrap px-1">
                 {memory}
               </p>

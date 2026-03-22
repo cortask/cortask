@@ -53,6 +53,14 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ content }),
       }),
+    searchMemory: (id: string, query: string, limit?: number) =>
+      request<MemorySearchResult[]>(
+        `/workspaces/${id}/memory/search?q=${encodeURIComponent(query)}${limit ? `&limit=${limit}` : ""}`,
+      ),
+    listMemoryEntries: (id: string, limit?: number) =>
+      request<MemoryEntry[]>(
+        `/workspaces/${id}/memory/entries${limit ? `?limit=${limit}` : ""}`,
+      ),
   },
 
   sessions: {
@@ -402,6 +410,10 @@ export interface AppConfig {
     maxCostUsd?: number;
     period: "daily" | "weekly" | "monthly";
   };
+  memory?: {
+    embeddingProvider: "local" | "api";
+    embeddingModel?: string;
+  };
   server: {
     port: number;
     host: string;
@@ -452,6 +464,21 @@ export interface PromptTemplate {
   category: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MemoryEntry {
+  id: string;
+  content: string;
+  source: "conversation" | "manual" | "agent";
+  sessionId?: string;
+  createdAt: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface MemorySearchResult {
+  entry: MemoryEntry;
+  score: number;
+  matchType: "vector" | "fts" | "hybrid";
 }
 
 export interface UpdateInfo {
