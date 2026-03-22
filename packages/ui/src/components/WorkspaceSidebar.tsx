@@ -53,6 +53,7 @@ import {
   Search,
   Brain,
   Trash2,
+  ExternalLink,
 } from "lucide-react";
 
 interface TreeEntry {
@@ -548,17 +549,30 @@ export function WorkspaceSidebar({
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Files
             </h3>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              onClick={fetchTree}
-              disabled={treeLoading}
-            >
-              <RefreshCw
-                className={`h-3 w-3 ${treeLoading ? "animate-spin" : ""}`}
-              />
-            </Button>
+            <div className="flex items-center gap-0.5">
+              {!!(window as any).cortask?.shell && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={() => (window as any).cortask.shell.showInFolder(workspace.rootPath)}
+                  title="Open in file explorer"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={fetchTree}
+                disabled={treeLoading}
+              >
+                <RefreshCw
+                  className={`h-3 w-3 ${treeLoading ? "animate-spin" : ""}`}
+                />
+              </Button>
+            </div>
           </div>
           <ScrollArea className="flex-1 min-h-0 px-3 pb-1">
             {tree.length === 0 ? (

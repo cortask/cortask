@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { X, Download, GripVertical, Save, Eye, Pencil } from "lucide-react";
+import { X, Download, GripVertical, Save, Eye, Pencil, ExternalLink } from "lucide-react";
 import { usePreviewStore } from "@/stores/previewStore";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -318,16 +318,34 @@ export function PreviewPanel() {
                             </TabsList>
                         </Tabs>
                     )}
-                    <a
-                        href={item.url}
-                        download={item.title}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <Download className="h-3.5 w-3.5" />
+                    {(window as any).cortask?.shell ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="Open in system"
+                            onClick={() => {
+                                const parsed = parseFileUrl(item.url);
+                                if (parsed && activeWorkspace) {
+                                    const fullPath = activeWorkspace.rootPath + "/" + parsed.filePath;
+                                    (window as any).cortask.shell.openPath(fullPath);
+                                }
+                            }}
+                        >
+                            <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
-                    </a>
+                    ) : (
+                        <a
+                            href={item.url}
+                            download={item.title}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Download className="h-3.5 w-3.5" />
+                            </Button>
+                        </a>
+                    )}
                     <Button
                         variant="ghost"
                         size="icon"

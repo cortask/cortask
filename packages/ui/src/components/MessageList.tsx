@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChevronRight, Download, Eye, File, Loader2 } from "lucide-react";
+import { ChevronRight, Download, ExternalLink, Eye, File, Loader2 } from "lucide-react";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePreviewStore } from "@/stores/previewStore";
@@ -399,19 +399,29 @@ function formatSize(bytes: number): string {
 }
 
 function FileCard({ fileRef }: { fileRef: FileRef }) {
-    const workspaceId = useWorkspaceStore((s) => s.activeWorkspace?.id);
+    const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
     const openPreview = usePreviewStore((s) => s.open);
-    const downloadUrl = workspaceId
-        ? `/api/workspaces/${workspaceId}/files/${fileRef.path}`
+    const downloadUrl = activeWorkspace
+        ? `/api/workspaces/${activeWorkspace.id}/files/${fileRef.path}`
         : "#";
     const fileName = fileRef.path.split("/").pop() || fileRef.path;
     const ext = fileName.includes(".")
         ? fileName.split(".").pop()!.toLowerCase()
         : "text";
+    const isDesktop = !!(window as any).cortask?.shell;
 
     const handlePreview = (e: React.MouseEvent) => {
         e.preventDefault();
         openPreview({ title: fileName, url: downloadUrl, type: ext });
+    };
+
+    const handleOpen = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (isDesktop && activeWorkspace) {
+            (window as any).cortask.shell.openPath(
+                activeWorkspace.rootPath + "/" + fileRef.path,
+            );
+        }
     };
 
     return (
@@ -434,16 +444,27 @@ function FileCard({ fileRef }: { fileRef: FileRef }) {
                     </div>
                     <Eye className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 </button>
-                <a
-                    href={downloadUrl}
-                    download={fileName}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-md p-1.5 hover:bg-secondary transition-colors text-muted-foreground"
-                    title="Download"
-                >
-                    <Download className="h-3.5 w-3.5" />
-                </a>
+                {isDesktop ? (
+                    <button
+                        type="button"
+                        onClick={handleOpen}
+                        className="rounded-md p-1.5 hover:bg-secondary transition-colors text-muted-foreground"
+                        title="Open in system"
+                    >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                    </button>
+                ) : (
+                    <a
+                        href={downloadUrl}
+                        download={fileName}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md p-1.5 hover:bg-secondary transition-colors text-muted-foreground"
+                        title="Download"
+                    >
+                        <Download className="h-3.5 w-3.5" />
+                    </a>
+                )}
             </div>
         </div>
     );

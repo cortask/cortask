@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, dialog, nativeImage, ipcMain } from "electron";
+import { app, BrowserWindow, Tray, Menu, dialog, nativeImage, ipcMain, shell } from "electron";
 import path from "node:path";
 import { startBackend, stopBackend } from "./backend.js";
 import { initUpdater } from "./updater.js";
@@ -169,6 +169,22 @@ app.whenReady().then(async () => {
       return result.filePaths[0];
     }
     return null;
+  });
+
+  ipcMain.handle("shell:open-path", async (_event, filePath: string) => {
+    try {
+      await shell.openPath(filePath);
+    } catch (err) {
+      console.error("Failed to open path:", err);
+    }
+  });
+
+  ipcMain.handle("shell:show-in-folder", async (_event, filePath: string) => {
+    try {
+      shell.showItemInFolder(filePath);
+    } catch (err) {
+      console.error("Failed to show in folder:", err);
+    }
   });
 
   try {

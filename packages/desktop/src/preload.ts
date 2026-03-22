@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld("cortask", {
       return () => ipcRenderer.removeListener("window:maximizeChanged", listener);
     },
   },
+  shell: {
+    openPath: (filePath: string): Promise<void> =>
+      ipcRenderer.invoke("shell:open-path", filePath),
+    showInFolder: (filePath: string): Promise<void> =>
+      ipcRenderer.invoke("shell:show-in-folder", filePath),
+  },
   updater: {
     check: (): Promise<unknown> => ipcRenderer.invoke("updater:check"),
     download: (): Promise<void> => ipcRenderer.invoke("updater:download"),
