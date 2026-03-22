@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
+import { ProjectHome } from "@/pages/ProjectHome";
 
 function WelcomeCard() {
     const { createWorkspace, setActiveWorkspace } = useWorkspaceStore();
@@ -106,6 +107,7 @@ export function ChatPage() {
         thinkingText,
         sendMessage,
         cancelStream,
+        activeSessionId,
     } = useChatStore();
     const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
     const workspaces = useWorkspaceStore((s) => s.workspaces);
@@ -114,6 +116,10 @@ export function ChatPage() {
 
     if (!loading && workspaces.length === 0) {
         return <WelcomeCard />;
+    }
+
+    if (activeWorkspace && !activeSessionId) {
+        return <ProjectHome workspace={activeWorkspace} />;
     }
 
     return (

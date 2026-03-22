@@ -5,10 +5,11 @@ import type { CronJobCreate } from "@cortask/core";
 export function createCronRoutes(cronService: CronService): Router {
   const router = Router();
 
-  // List all cron jobs
-  router.get("/", (_req, res) => {
+  // List cron jobs (optionally filtered by workspaceId)
+  router.get("/", (req, res) => {
     try {
-      const jobs = cronService.list();
+      const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : undefined;
+      const jobs = cronService.list(workspaceId);
       const result = jobs.map((job) => {
         const state = cronService.getState(job.id);
         return { ...job, state };

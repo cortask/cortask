@@ -40,6 +40,15 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ ids }),
       }),
+    listFiles: (id: string) =>
+      request<{ files: Array<{ name: string; mtime: number }> }>(`/workspaces/${id}/list-files`),
+    readMemory: (id: string) =>
+      request<{ content: string | null }>(`/workspaces/${id}/memory`),
+    writeMemory: (id: string, content: string) =>
+      request<{ ok: boolean }>(`/workspaces/${id}/memory`, {
+        method: "PUT",
+        body: JSON.stringify({ content }),
+      }),
   },
 
   sessions: {
@@ -120,7 +129,8 @@ export const api = {
   },
 
   cron: {
-    list: () => request<CronJobWithState[]>("/cron"),
+    list: (workspaceId?: string) =>
+      request<CronJobWithState[]>(workspaceId ? `/cron?workspaceId=${workspaceId}` : "/cron"),
     get: (id: string) => request<CronJobWithState>(`/cron/${id}`),
     create: (input: CronJobInput) =>
       request<CronJobInfo>("/cron", {
