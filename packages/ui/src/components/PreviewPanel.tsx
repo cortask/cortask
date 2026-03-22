@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
+import { emitFilesChange } from "@/lib/events";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 const PROSE_CLASSES =
@@ -117,7 +118,7 @@ function HtmlRenderer({ url }: { url: string }) {
         <iframe
             srcDoc={content}
             title="HTML Preview"
-            className="w-full h-full min-h-[600px] border-0"
+            className="flex-1 w-full border-0"
             sandbox="allow-scripts"
         />
     );
@@ -191,7 +192,7 @@ function EditableRenderer({
 
     return (
         <textarea
-            className="w-full h-full min-h-[400px] p-4 text-xs font-mono bg-transparent text-foreground resize-none outline-none"
+            className="w-full h-full p-4 text-xs font-mono bg-transparent text-foreground resize-none outline-none"
             value={content}
             onChange={(e) => {
                 setContent(e.target.value);
@@ -264,6 +265,7 @@ export function PreviewPanel() {
         try {
             await api.workspaces.writeFile(parsed.workspaceId, parsed.filePath, editorRef.current.getContent());
             setDirty(false);
+            emitFilesChange();
         } catch (err) {
             console.error("Failed to save file:", err);
         } finally {
@@ -337,37 +339,37 @@ export function PreviewPanel() {
                 </div>
 
                 {/* Content */}
-                <ScrollArea className="flex-1">
-                    {editMode && canEdit ? (
+                {editMode && canEdit ? (
+                    <div className="flex-1 min-h-0 overflow-auto">
                         <EditableRenderer
                             url={item.url}
                             onDirtyChange={setDirty}
                             editorRef={editorRef}
                         />
-                    ) : (
-                        <>
-                            {renderer === "markdown" && <MarkdownRenderer url={item.url} />}
-                            {renderer === "html" && <HtmlRenderer url={item.url} />}
-                            {renderer === "image" && (
-                                <div className="p-4 flex items-center justify-center">
-                                    <img
-                                        src={item.url}
-                                        alt={item.title}
-                                        className="max-w-full max-h-[80vh] object-contain"
-                                    />
-                                </div>
-                            )}
-                            {renderer === "pdf" && (
-                                <iframe
+                    </div>
+                ) : renderer === "html" ? (
+                    <HtmlRenderer url={item.url} />
+                ) : renderer === "pdf" ? (
+                    <iframe
+                        src={item.url}
+                        title={item.title}
+                        className="flex-1 w-full border-0"
+                    />
+                ) : (
+                    <ScrollArea className="flex-1">
+                        {renderer === "markdown" && <MarkdownRenderer url={item.url} />}
+                        {renderer === "image" && (
+                            <div className="p-4 flex items-center justify-center">
+                                <img
                                     src={item.url}
-                                    title={item.title}
-                                    className="w-full h-full min-h-[600px] border-0"
+                                    alt={item.title}
+                                    className="max-w-full max-h-[80vh] object-contain"
                                 />
-                            )}
-                            {renderer === "text" && <TextRenderer url={item.url} />}
-                        </>
-                    )}
-                </ScrollArea>
+                            </div>
+                        )}
+                        {renderer === "text" && <TextRenderer url={item.url} />}
+                    </ScrollArea>
+                )}
 
                 {/* Save button — slides in when dirty */}
                 <div

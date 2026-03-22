@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { wsClient, type WSMessage } from "@/lib/ws";
 import { api, type Session } from "@/lib/api";
-import { emitCronChange } from "@/lib/events";
+import { emitCronChange, emitFilesChange } from "@/lib/events";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export interface ChatMessage {
@@ -464,6 +464,8 @@ wsClient.on("*", (msg: WSMessage) => {
       if (ws) store.fetchSessions(ws.id);
       // Refresh sidebar cron list (agent may have created/modified cron jobs)
       emitCronChange();
+      // Refresh file tree (agent may have created/modified files)
+      emitFilesChange();
       break;
     }
     case "session:refresh": {

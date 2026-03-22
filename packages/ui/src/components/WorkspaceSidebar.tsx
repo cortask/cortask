@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
 import { api, type Workspace, type CronJobWithState, type MemoryEntry, type MemorySearchResult } from "@/lib/api";
-import { onCronChange } from "@/lib/events";
+import { onCronChange, onFilesChange } from "@/lib/events";
 import { usePreviewStore } from "@/stores/previewStore";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -370,6 +370,18 @@ export function WorkspaceSidebar({
 
   useEffect(() => {
     fetchTree();
+  }, [fetchTree]);
+
+  // Refresh tree when agent creates/modifies files
+  useEffect(() => {
+    return onFilesChange(fetchTree);
+  }, [fetchTree]);
+
+  // Refresh tree when window regains focus (picks up manual filesystem changes)
+  useEffect(() => {
+    const onFocus = () => fetchTree();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [fetchTree]);
 
   const treeNodes = buildTree(tree);
