@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChatInput } from "@/components/ChatInput";
 import { MessageList } from "@/components/MessageList";
 import { PreviewPanel } from "@/components/PreviewPanel";
+import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 import { useChatStore } from "@/stores/chatStore";
 import { usePreviewStore } from "@/stores/previewStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -24,7 +25,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
-import { ProjectHome } from "@/pages/ProjectHome";
 
 function WelcomeCard() {
     const { createWorkspace, setActiveWorkspace } = useWorkspaceStore();
@@ -107,19 +107,15 @@ export function ChatPage() {
         thinkingText,
         sendMessage,
         cancelStream,
-        activeSessionId,
     } = useChatStore();
     const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
     const workspaces = useWorkspaceStore((s) => s.workspaces);
     const loading = useWorkspaceStore((s) => s.loading);
     const previewItem = usePreviewStore((s) => s.item);
+    const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
 
     if (!loading && workspaces.length === 0) {
         return <WelcomeCard />;
-    }
-
-    if (activeWorkspace && !activeSessionId) {
-        return <ProjectHome workspace={activeWorkspace} />;
     }
 
     return (
@@ -142,18 +138,37 @@ export function ChatPage() {
                     <ChatInput
                         onSend={(text, attachments) => {
                             if (activeWorkspace) {
-                                sendMessage(text, activeWorkspace.id, attachments);
+                                sendMessage(
+                                    text,
+                                    activeWorkspace.id,
+                                    attachments,
+                                    selectedFiles.length > 0
+                                        ? selectedFiles
+                                        : undefined,
+                                );
+                                setSelectedFiles([]);
                             }
                         }}
                         isStreaming={isStreaming}
                         onCancel={cancelStream}
                         disabled={!activeWorkspace}
+                        selectedFiles={selectedFiles}
+                        onClearFiles={() => setSelectedFiles([])}
                     />
                 </div>
             </div>
 
-            {/* Preview panel (right side) */}
+            {/* Preview panel */}
             {previewItem && <PreviewPanel />}
+
+            {/* Workspace sidebar (right) */}
+            {activeWorkspace && (
+                <WorkspaceSidebar
+                    workspace={activeWorkspace}
+                    selectedFiles={selectedFiles}
+                    onSelectedFilesChange={setSelectedFiles}
+                />
+            )}
         </div>
     );
 }

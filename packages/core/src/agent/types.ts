@@ -9,6 +9,7 @@ export interface Attachment {
 export interface AgentRunParams {
   prompt: string;
   attachments?: Attachment[];
+  fileReferences?: string[];
   sessionId?: string;
   workspaceId?: string;
   signal?: AbortSignal;

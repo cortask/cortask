@@ -40,6 +40,10 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ ids }),
       }),
+    getTree: (id: string, depth?: number) =>
+      request<{ tree: Array<{ path: string; name: string; type: "file" | "dir" }> }>(
+        `/workspaces/${id}/tree${depth ? `?depth=${depth}` : ""}`
+      ),
     listFiles: (id: string) =>
       request<{ files: Array<{ name: string; mtime: number }> }>(`/workspaces/${id}/list-files`),
     readMemory: (id: string) =>

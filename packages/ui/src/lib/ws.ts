@@ -106,6 +106,7 @@ export class WebSocketClient {
     message: string,
     workspaceId: string,
     attachments?: Array<{ mimeType: string; base64: string; name?: string }>,
+    fileReferences?: string[],
   ) {
     this.send({
       type: "chat",
@@ -113,6 +114,7 @@ export class WebSocketClient {
       message,
       workspaceId,
       ...(attachments?.length ? { attachments } : {}),
+      ...(fileReferences?.length ? { fileReferences } : {}),
     });
   }
 

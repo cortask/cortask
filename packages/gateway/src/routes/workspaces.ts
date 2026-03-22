@@ -153,6 +153,52 @@ export function createWorkspaceRoutes(ctx: GatewayContext): Router {
     }
   });
 
+  // Recursive directory tree
+  router.get("/:id/tree", async (req, res) => {
+    try {
+      const workspace = await ctx.workspaceManager.get(req.params.id);
+      if (!workspace) {
+        res.status(404).json({ error: "Workspace not found" });
+        return;
+      }
+      const maxDepth = Math.min(Math.max(parseInt(req.query.depth as string) || 3, 1), 5);
+      const skip = new Set([".cortask", ".git", "node_modules", "dist", "__pycache__", ".venv", ".env"]);
+
+      interface TreeEntry { path: string; name: string; type: "file" | "dir" }
+      const entries: TreeEntry[] = [];
+
+      async function walk(dir: string, relPrefix: string, depth: number) {
+        if (depth > maxDepth) return;
+        let dirents;
+        try {
+          dirents = await fs.readdir(dir, { withFileTypes: true });
+        } catch {
+          return;
+        }
+        dirents.sort((a, b) => {
+          if (a.isDirectory() && !b.isDirectory()) return -1;
+          if (!a.isDirectory() && b.isDirectory()) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        for (const d of dirents) {
+          if (skip.has(d.name) || d.name.startsWith(".")) continue;
+          const rel = relPrefix ? `${relPrefix}/${d.name}` : d.name;
+          if (d.isDirectory()) {
+            entries.push({ path: rel, name: d.name, type: "dir" });
+            await walk(path.join(dir, d.name), rel, depth + 1);
+          } else {
+            entries.push({ path: rel, name: d.name, type: "file" });
+          }
+        }
+      }
+
+      await walk(workspace.rootPath, "", 1);
+      res.json({ tree: entries });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // Serve workspace files for download
   router.get("/:id/files/*", async (req, res) => {
     try {

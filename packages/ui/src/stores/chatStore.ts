@@ -37,6 +37,7 @@ interface ChatState {
     text: string,
     workspaceId: string,
     attachments?: Array<{ mimeType: string; base64: string; name?: string }>,
+    fileReferences?: string[],
   ) => void;
   newSession: () => void;
   cancelStream: () => void;
@@ -182,7 +183,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: (text, workspaceId, attachments) => {
+  sendMessage: (text, workspaceId, attachments, fileReferences) => {
     const sessionId =
       get().activeSessionId ??
       `session_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -201,7 +202,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingText: "",
     }));
 
-    wsClient.sendChat(sessionId, text, workspaceId, attachments);
+    wsClient.sendChat(sessionId, text, workspaceId, attachments, fileReferences);
   },
 
   newSession: () => {

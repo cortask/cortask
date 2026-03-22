@@ -39,6 +39,7 @@ interface ChatMessage {
   message: string;
   workspaceId: string;
   attachments?: ChatAttachment[];
+  fileReferences?: string[];
 }
 
 interface CancelMessage {
@@ -207,6 +208,7 @@ async function handleChat(
     for await (const event of runner.runStream({
       prompt: msg.message,
       attachments: msg.attachments,
+      fileReferences: msg.fileReferences,
       sessionId: msg.sessionKey,
       workspaceId: msg.workspaceId,
       signal: abortController.signal,

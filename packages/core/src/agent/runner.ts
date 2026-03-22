@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import nodePath from "node:path";
 import type {
   LLMProvider,
   Message,
@@ -219,6 +221,30 @@ export class AgentRunner {
     };
   }
 
+  private async readFileReferences(refs?: string[]): Promise<ContentPart[]> {
+    if (!refs?.length) return [];
+    const workspacePath = this.deps.getWorkspacePath();
+    const parts: ContentPart[] = [];
+    const MAX_FILE_SIZE = 50 * 1024; // 50KB
+
+    for (const ref of refs) {
+      const fullPath = nodePath.resolve(workspacePath, ref);
+      if (!fullPath.startsWith(nodePath.resolve(workspacePath))) continue;
+      try {
+        const stat = await fs.stat(fullPath);
+        if (stat.size > MAX_FILE_SIZE) {
+          parts.push({ type: "text", text: `[File: ${ref}]\n(Skipped — file exceeds 50KB limit)` });
+          continue;
+        }
+        const content = await fs.readFile(fullPath, "utf-8");
+        parts.push({ type: "text", text: `[File: ${ref}]\n\`\`\`\n${content}\n\`\`\`` });
+      } catch {
+        parts.push({ type: "text", text: `[File: ${ref}]\n(File not found or unreadable)` });
+      }
+    }
+    return parts;
+  }
+
   async run(params: AgentRunParams): Promise<AgentRunResult> {
     const runId = crypto.randomUUID();
     const sessionId = params.sessionId ?? crypto.randomUUID();
@@ -226,14 +252,18 @@ export class AgentRunner {
 
     const messages = await this.deps.getSessionMessages(sessionId);
 
-    if (params.attachments?.length) {
+    const fileRefParts = await this.readFileReferences(params.fileReferences);
+    const hasMultipart = (params.attachments?.length ?? 0) > 0 || fileRefParts.length > 0;
+
+    if (hasMultipart) {
       const parts: ContentPart[] = [
         { type: "text", text: params.prompt },
-        ...params.attachments.map((a) => ({
+        ...fileRefParts,
+        ...(params.attachments?.map((a) => ({
           type: "image" as const,
           imageBase64: a.base64,
           mimeType: a.mimeType,
-        })),
+        })) ?? []),
       ];
       messages.push({ role: "user", content: parts });
     } else {
@@ -374,15 +404,19 @@ export class AgentRunner {
 
     const messages = await this.deps.getSessionMessages(sessionId);
 
-    // Build user message with optional image attachments
-    if (params.attachments?.length) {
+    // Build user message with optional image attachments and file references
+    const streamFileRefParts = await this.readFileReferences(params.fileReferences);
+    const streamHasMultipart = (params.attachments?.length ?? 0) > 0 || streamFileRefParts.length > 0;
+
+    if (streamHasMultipart) {
       const parts: ContentPart[] = [
         { type: "text", text: params.prompt },
-        ...params.attachments.map((a) => ({
+        ...streamFileRefParts,
+        ...(params.attachments?.map((a) => ({
           type: "image" as const,
           imageBase64: a.base64,
           mimeType: a.mimeType,
-        })),
+        })) ?? []),
       ];
       messages.push({ role: "user", content: parts });
     } else {
