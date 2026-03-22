@@ -18,6 +18,9 @@ import {
   ArtifactStore,
   installSkillFromGit,
   removeSkill,
+  createSkill,
+  updateSkill,
+  readSkillFile,
   type ProviderId,
   type ToolHandler,
 } from "@cortask/core";
@@ -29,6 +32,13 @@ import { configureHelp } from "./terminal/help.js";
 import { setupCommand } from "./commands/setup.js";
 import { statusCommand } from "./commands/status.js";
 import { dashboardCommand } from "./commands/dashboard.js";
+import { configCommand } from "./commands/config.js";
+import { providersCommand } from "./commands/providers.js";
+import { sessionsCommand } from "./commands/sessions.js";
+import { usageCommand } from "./commands/usage.js";
+import { modelsCommand } from "./commands/models.js";
+import { templatesCommand } from "./commands/templates.js";
+import { channelsCommand } from "./commands/channels.js";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
@@ -335,6 +345,13 @@ program
 program.addCommand(setupCommand);
 program.addCommand(statusCommand);
 program.addCommand(dashboardCommand);
+program.addCommand(configCommand);
+program.addCommand(providersCommand);
+program.addCommand(sessionsCommand);
+program.addCommand(usageCommand);
+program.addCommand(modelsCommand);
+program.addCommand(templatesCommand);
+program.addCommand(channelsCommand);
 
 // ── workspaces ─────────────────────────────────────────────
 
@@ -488,6 +505,42 @@ sk.command("remove")
     console.log(`${theme.success("✓")} Removed skill ${theme.command(name)}`);
   });
 
+sk.command("create")
+  .description("Create a new custom skill")
+  .argument("<name>", "Skill name (kebab-case)")
+  .requiredOption("-c, --content <content>", "SKILL.md content (or use --file)")
+  .action(async (name, opts) => {
+    const dataDir = getDataDir();
+    const userSkillsDir = path.join(dataDir, "skills");
+    await createSkill(userSkillsDir, name, opts.content);
+    console.log(`${theme.success("✓")} Created skill ${theme.command(name)}`);
+  });
+
+sk.command("update")
+  .description("Update a custom skill")
+  .argument("<name>", "Skill name")
+  .requiredOption("-c, --content <content>", "New SKILL.md content")
+  .action(async (name, opts) => {
+    const dataDir = getDataDir();
+    const userSkillsDir = path.join(dataDir, "skills");
+    await updateSkill(userSkillsDir, name, opts.content);
+    console.log(`${theme.success("✓")} Updated skill ${theme.command(name)}`);
+  });
+
+sk.command("show")
+  .description("Show skill content")
+  .argument("<name>", "Skill name")
+  .action(async (name) => {
+    const dataDir = getDataDir();
+    const userSkillsDir = path.join(dataDir, "skills");
+    const content = await readSkillFile(userSkillsDir, name);
+    if (!content) {
+      console.error(theme.error(`✗ Skill not found: ${name}`));
+      process.exit(1);
+    }
+    console.log(content);
+  });
+
 // ── cron ───────────────────────────────────────────────────
 
 const cr = program.command("cron").description("Manage cron jobs");
@@ -540,6 +593,68 @@ cr.command("remove")
     const cronService = new CronService(dbPath);
     cronService.remove(id);
     console.log(`${theme.success("✓")} Deleted cron job ${theme.muted(id)}`);
+    cronService.stop();
+  });
+
+cr.command("update")
+  .description("Update a cron job")
+  .argument("<id>", "Job ID")
+  .option("-n, --name <name>", "New job name")
+  .option("-s, --schedule <cron>", "New cron expression")
+  .option("-p, --prompt <prompt>", "New prompt")
+  .option("--enable", "Enable the job")
+  .option("--disable", "Disable the job")
+  .action(async (id, opts) => {
+    const dataDir = getDataDir();
+    const dbPath = path.join(dataDir, "cortask.db");
+    const cronService = new CronService(dbPath);
+
+    const updates: Record<string, unknown> = {};
+    if (opts.name) updates.name = opts.name;
+    if (opts.schedule) updates.schedule = { type: "cron", expression: opts.schedule };
+    if (opts.prompt) updates.prompt = opts.prompt;
+    if (opts.enable) updates.enabled = true;
+    if (opts.disable) updates.enabled = false;
+
+    if (Object.keys(updates).length === 0) {
+      console.error(theme.error("✗ No fields to update. Use --name, --schedule, --prompt, --enable, or --disable."));
+      cronService.stop();
+      process.exit(1);
+    }
+
+    const job = cronService.update(id, updates);
+    if (!job) {
+      console.error(theme.error(`✗ Cron job not found: ${id}`));
+      cronService.stop();
+      process.exit(1);
+    }
+
+    console.log(`${theme.success("✓")} Updated cron job ${theme.command(job.name)}`);
+    cronService.stop();
+  });
+
+cr.command("run")
+  .description("Execute a cron job immediately")
+  .argument("<id>", "Job ID")
+  .action(async (id) => {
+    const dataDir = getDataDir();
+    const dbPath = path.join(dataDir, "cortask.db");
+    const cronService = new CronService(dbPath);
+
+    const job = cronService.getJob(id);
+    if (!job) {
+      console.error(theme.error(`✗ Cron job not found: ${id}`));
+      cronService.stop();
+      process.exit(1);
+    }
+
+    console.log(theme.muted(`Executing job "${job.name}"...`));
+    try {
+      await cronService.runNow(id);
+      console.log(`${theme.success("✓")} Job executed successfully`);
+    } catch (err) {
+      console.error(theme.error(`✗ ${err instanceof Error ? err.message : String(err)}`));
+    }
     cronService.stop();
   });
 
