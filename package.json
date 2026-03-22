@@ -14,7 +14,8 @@
       "@whiskeysockets/baileys",
       "protobufjs",
       "sharp",
-      "electron"
+      "electron",
+      "node-llama-cpp"
     ]
   },
   "scripts": {
