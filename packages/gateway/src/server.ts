@@ -62,6 +62,7 @@ import { createConfigRoutes } from "./routes/config.js";
 import { createUsageRoutes } from "./routes/usage.js";
 import { createModelRoutes } from "./routes/models.js";
 import { createTemplateRoutes } from "./routes/templates.js";
+import { createLlmRoutes } from "./routes/llm.js";
 import { handleWebSocket, broadcastSessionRefresh } from "./ws.js";
 
 export interface AgentRunnerOptions {
@@ -404,6 +405,7 @@ export async function startServer(port?: number, host?: string) {
   app.use("/api/usage", createUsageRoutes(usageStore));
   app.use("/api/models", createModelRoutes(ctx));
   app.use("/api/templates", createTemplateRoutes(templateStore));
+  app.use("/api/llm", createLlmRoutes(ctx));
   async function createChannelAdapter(id: string): Promise<ChannelPlugin | null> {
     if (id === "telegram") {
       const botToken = await credentialStore.get("channel.telegram.botToken");

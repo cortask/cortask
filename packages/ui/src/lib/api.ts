@@ -152,6 +152,14 @@ export const api = {
       request<{ status: string }>(`/cron/${id}/run`, { method: "POST" }),
   },
 
+  llm: {
+    complete: (prompt: string) =>
+      request<{ response: string }>("/llm/complete", {
+        method: "POST",
+        body: JSON.stringify({ prompt }),
+      }),
+  },
+
   channels: {
     list: () => request<ChannelStatus[]>("/channels"),
     start: (id: string) =>

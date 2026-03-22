@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { api, type CronJobWithState, type CronSchedule } from "@/lib/api";
+import { useSearchParams } from "react-router";
+import { api, type CronJobWithState, type CronSchedule, type Workspace } from "@/lib/api";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { emitCronChange } from "@/lib/events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,12 +16,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Check } from "lucide-react";
 
 export function CronPage() {
   const [jobs, setJobs] = useState<CronJobWithState[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [filterWorkspaceId, setFilterWorkspaceId] = useState<string>("all");
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-open create form when navigated with ?create=workspaceId
+  const createForWorkspace = searchParams.get("create");
+  useEffect(() => {
+    if (createForWorkspace) {
+      setShowCreate(true);
+      // Clear the query param so it doesn't persist on refresh
+      setSearchParams({}, { replace: true });
+    }
+  }, [createForWorkspace, setSearchParams]);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -43,6 +60,7 @@ export function CronPage() {
     try {
       await api.cron.delete(id);
       await fetchJobs();
+      emitCronChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete job");
     }
@@ -52,6 +70,7 @@ export function CronPage() {
     try {
       await api.cron.update(id, { enabled: !enabled });
       await fetchJobs();
+      emitCronChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update job");
     }
@@ -76,7 +95,18 @@ export function CronPage() {
 
   return (
     <div className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full p-6">
-      <div className="flex items-center justify-end mb-6">
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <Select value={filterWorkspaceId} onValueChange={setFilterWorkspaceId}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Projects</SelectItem>
+            {workspaces.map((ws) => (
+              <SelectItem key={ws.id} value={ws.id}>{ws.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button
           variant="secondary"
           onClick={() => setShowCreate(!showCreate)}
@@ -101,19 +131,26 @@ export function CronPage() {
 
       {showCreate && (
         <CreateJobForm
+          workspaces={workspaces}
+          initialWorkspaceId={createForWorkspace ?? undefined}
           onCreated={() => {
             setShowCreate(false);
             fetchJobs();
+            emitCronChange();
           }}
           onError={setError}
         />
       )}
 
       <div className="space-y-3">
-        {jobs.map((job) => (
+        {(filterWorkspaceId === "all"
+          ? jobs
+          : jobs.filter((j) => j.workspaceId === filterWorkspaceId)
+        ).map((job) => (
           <JobCard
             key={job.id}
             job={job}
+            workspaces={workspaces}
             onToggle={handleToggle}
             onDelete={handleDelete}
             onRunNow={handleRunNow}
@@ -131,16 +168,21 @@ export function CronPage() {
 
 function JobCard({
   job,
+  workspaces,
   onToggle,
   onDelete,
   onRunNow,
 }: {
   job: CronJobWithState;
+  workspaces: Workspace[];
   onToggle: (id: string, enabled: boolean) => void;
   onDelete: (id: string, name: string) => void;
   onRunNow: (id: string) => void;
 }) {
   const scheduleText = formatSchedule(job.schedule);
+  const workspaceName = job.workspaceId
+    ? workspaces.find((w) => w.id === job.workspaceId)?.name ?? "Unknown"
+    : null;
   const nextRun = job.state?.nextRunAtMs
     ? new Date(job.state.nextRunAtMs).toLocaleString()
     : "—";
@@ -161,6 +203,15 @@ function JobCard({
                 </Badge>
               ) : (
                 <Badge variant="secondary">Disabled</Badge>
+              )}
+              {workspaceName ? (
+                <Badge variant="outline" className="text-[10px]">
+                  {workspaceName}
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-[10px]">
+                  Global
+                </Badge>
               )}
               {job.state?.lastStatus === "error" && (
                 <Badge variant="destructive">
@@ -226,21 +277,62 @@ function JobCard({
 }
 
 function CreateJobForm({
+  workspaces,
+  initialWorkspaceId,
   onCreated,
   onError,
 }: {
+  workspaces: Workspace[];
+  initialWorkspaceId?: string;
   onCreated: () => void;
   onError: (msg: string) => void;
 }) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [scheduleType, setScheduleType] = useState<"cron" | "every" | "at">(
-    "cron",
-  );
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(initialWorkspaceId ?? "none");
   const [scheduleValue, setScheduleValue] = useState("");
+  const [scheduleType, setScheduleType] = useState<"cron" | "at">("cron");
+  const [scheduleLabel, setScheduleLabel] = useState("");
+  const [naturalLang, setNaturalLang] = useState("");
+  const [converting, setConverting] = useState(false);
   const [deliveryChannel, setDeliveryChannel] = useState("");
   const [deliveryTarget, setDeliveryTarget] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  async function handleConvert() {
+    if (!naturalLang.trim()) return;
+    setConverting(true);
+    try {
+      const now = new Date().toISOString();
+      const result = await api.llm.complete(
+        `You convert schedule descriptions to either a cron expression or an ISO 8601 datetime.
+
+Rules:
+- If the description is a recurring schedule (e.g. "every monday at 10am", "daily at 9"), reply with: CRON <5-field cron expression>
+- If the description is a one-time event (e.g. "in 10 minutes", "tomorrow at 3pm", "on March 25 at noon"), reply with: AT <ISO 8601 datetime>
+
+Reply with ONLY "CRON <expression>" or "AT <datetime>". No explanation, no backticks.
+The current time is: ${now}
+
+Schedule: "${naturalLang}"`
+      );
+      const response = result.response.trim();
+      if (response.startsWith("AT ")) {
+        setScheduleType("at");
+        setScheduleValue(response.slice(3).trim());
+        setScheduleLabel(new Date(response.slice(3).trim()).toLocaleString());
+      } else {
+        setScheduleType("cron");
+        const expr = response.startsWith("CRON ") ? response.slice(5).trim() : response;
+        setScheduleValue(expr);
+        setScheduleLabel(expr);
+      }
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Failed to convert schedule");
+    } finally {
+      setConverting(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -248,23 +340,15 @@ function CreateJobForm({
 
     setSubmitting(true);
     try {
-      let schedule: CronSchedule;
-      switch (scheduleType) {
-        case "cron":
-          schedule = { type: "cron", expression: scheduleValue };
-          break;
-        case "every":
-          schedule = { type: "every", intervalMs: parseInt(scheduleValue, 10) };
-          break;
-        case "at":
-          schedule = { type: "at", datetime: scheduleValue };
-          break;
-      }
+      const schedule: CronSchedule = scheduleType === "at"
+        ? { type: "at", datetime: scheduleValue }
+        : { type: "cron", expression: scheduleValue };
 
       await api.cron.create({
         name,
         prompt,
         schedule,
+        workspaceId: selectedWorkspaceId !== "none" ? selectedWorkspaceId : undefined,
         ...(deliveryChannel && deliveryChannel !== "none" && deliveryTarget
           ? { delivery: { channel: deliveryChannel, target: deliveryTarget } }
           : {}),
@@ -291,6 +375,21 @@ function CreateJobForm({
           </div>
 
           <div className="space-y-1">
+            <Label>Project</Label>
+            <Select value={selectedWorkspaceId} onValueChange={setSelectedWorkspaceId}>
+              <SelectTrigger>
+                <SelectValue placeholder="None (Global)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None (Global)</SelectItem>
+                {workspaces.map((ws) => (
+                  <SelectItem key={ws.id} value={ws.id}>{ws.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
             <Label>Prompt</Label>
             <Textarea
               value={prompt}
@@ -301,45 +400,33 @@ function CreateJobForm({
             />
           </div>
 
-          <div className="flex gap-3">
-            <div className="w-32 space-y-1">
-              <Label>Type</Label>
-              <Select
-                value={scheduleType}
-                onValueChange={(v) =>
-                  setScheduleType(v as "cron" | "every" | "at")
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cron">Cron</SelectItem>
-                  <SelectItem value="every">Interval</SelectItem>
-                  <SelectItem value="at">One-time</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1 space-y-1">
-              <Label>
-                {scheduleType === "cron"
-                  ? "Cron Expression"
-                  : scheduleType === "every"
-                    ? "Interval (ms)"
-                    : "DateTime (ISO)"}
-              </Label>
+          <div className="space-y-2">
+            <Label>Schedule</Label>
+            <div className="flex gap-2">
               <Input
-                value={scheduleValue}
-                onChange={(e) => setScheduleValue(e.target.value)}
-                placeholder={
-                  scheduleType === "cron"
-                    ? "0 9 * * *"
-                    : scheduleType === "every"
-                      ? "3600000"
-                      : "2026-03-04T09:00:00Z"
-                }
+                value={naturalLang}
+                onChange={(e) => setNaturalLang(e.target.value)}
+                placeholder="Every monday at 10am"
+                className="flex-1"
               />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={converting || !naturalLang.trim()}
+                onClick={handleConvert}
+              >
+                {converting ? "Converting..." : "Convert"}
+              </Button>
             </div>
+            {scheduleValue && (
+              <div className="flex items-center gap-2 text-xs text-green-500">
+                <Check className="h-3.5 w-3.5" />
+                <span className="font-mono">
+                  {scheduleType === "at" ? `one-time: ${scheduleLabel}` : scheduleLabel}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">

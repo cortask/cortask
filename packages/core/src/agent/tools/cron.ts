@@ -68,14 +68,14 @@ export function createCronTool(cronService: CronService): ToolHandler {
 
     execute: async (
       args: Record<string, unknown>,
-      _context: ToolExecutionContext,
+      context: ToolExecutionContext,
     ): Promise<ToolResult> => {
       const action = args.action as string;
 
       try {
         switch (action) {
           case "list": {
-            const jobs = cronService.list();
+            const jobs = cronService.list(context.workspaceId);
             if (jobs.length === 0) {
               return { toolCallId: "", content: "No cron jobs found." };
             }
@@ -113,6 +113,7 @@ export function createCronTool(cronService: CronService): ToolHandler {
               prompt,
               enabled: (args.enabled as boolean) ?? true,
               delivery,
+              workspaceId: context.workspaceId,
             });
 
             return {

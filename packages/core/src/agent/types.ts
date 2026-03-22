@@ -90,6 +90,7 @@ export interface ToolExecutionContext {
   dataDir: string;
   sessionId: string;
   runId: string;
+  workspaceId?: string;
   requestPermission: (req: PermissionRequest) => Promise<boolean>;
   requestQuestionnaire: (
     req: QuestionnaireRequest,

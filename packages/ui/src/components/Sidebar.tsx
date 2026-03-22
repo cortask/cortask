@@ -323,6 +323,55 @@ export function Sidebar() {
                 ))}
             </nav>
 
+            {/* Projects header + add button */}
+            <div className="flex items-center justify-between border-t px-3 py-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                    Projects
+                </span>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setAddDialogOpen(true)}
+                    title="New Project"
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+
+            {/* Project List (sortable) */}
+            <ScrollArea className="shrink-0 max-h-40 px-2 pb-2">
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    modifiers={[restrictToVerticalAxis]}
+                    onDragEnd={handleProjectDragEnd}
+                >
+                    <SortableContext
+                        items={workspaces.map((w) => w.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        {workspaces.map((ws) => (
+                            <SortableProjectItem
+                                key={ws.id}
+                                ws={ws}
+                                isActive={ws.id === activeWorkspace?.id}
+                                onSelect={() => handleSelectProject(ws)}
+                                onEdit={(e) => {
+                                    e.stopPropagation();
+                                    setEditProject(ws);
+                                    setEditName(ws.name);
+                                }}
+                                onRemove={(e) => {
+                                    e.stopPropagation();
+                                    setRemoveConfirm(ws);
+                                }}
+                            />
+                        ))}
+                    </SortableContext>
+                </DndContext>
+            </ScrollArea>
+
             {/* Chats header + new chat */}
             <div className="flex items-center justify-between border-t px-3 py-2">
                 <span className="text-xs font-medium text-muted-foreground">
@@ -409,55 +458,6 @@ export function Sidebar() {
                         </div>
                     ))}
                 </div>
-            </ScrollArea>
-
-            {/* Projects header + add button */}
-            <div className="flex items-center justify-between border-t px-3 py-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                    Projects
-                </span>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => setAddDialogOpen(true)}
-                    title="New Project"
-                >
-                    <Plus className="h-3.5 w-3.5" />
-                </Button>
-            </div>
-
-            {/* Project List (sortable) */}
-            <ScrollArea className="shrink-0 max-h-40 px-2 pb-2">
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    modifiers={[restrictToVerticalAxis]}
-                    onDragEnd={handleProjectDragEnd}
-                >
-                    <SortableContext
-                        items={workspaces.map((w) => w.id)}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        {workspaces.map((ws) => (
-                            <SortableProjectItem
-                                key={ws.id}
-                                ws={ws}
-                                isActive={ws.id === activeWorkspace?.id}
-                                onSelect={() => handleSelectProject(ws)}
-                                onEdit={(e) => {
-                                    e.stopPropagation();
-                                    setEditProject(ws);
-                                    setEditName(ws.name);
-                                }}
-                                onRemove={(e) => {
-                                    e.stopPropagation();
-                                    setRemoveConfirm(ws);
-                                }}
-                            />
-                        ))}
-                    </SortableContext>
-                </DndContext>
             </ScrollArea>
 
             {/* Connection status footer */}

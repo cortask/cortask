@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { wsClient, type WSMessage } from "@/lib/ws";
 import { api, type Session } from "@/lib/api";
+import { emitCronChange } from "@/lib/events";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export interface ChatMessage {
@@ -461,6 +462,8 @@ wsClient.on("*", (msg: WSMessage) => {
       // Refresh session list to pick up auto-generated title
       const ws = useWorkspaceStore.getState().activeWorkspace;
       if (ws) store.fetchSessions(ws.id);
+      // Refresh sidebar cron list (agent may have created/modified cron jobs)
+      emitCronChange();
       break;
     }
     case "session:refresh": {

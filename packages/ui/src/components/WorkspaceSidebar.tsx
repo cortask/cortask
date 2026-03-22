@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
 import { api, type Workspace, type CronJobWithState } from "@/lib/api";
+import { onCronChange } from "@/lib/events";
 import { usePreviewStore } from "@/stores/previewStore";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,9 +27,10 @@ import {
   File,
   Eye,
   RefreshCw,
-  Brain,
   Clock,
   Pencil,
+  Plus,
+  GripHorizontal,
 } from "lucide-react";
 
 interface TreeEntry {
@@ -145,11 +147,54 @@ function FileTreeNode({
   );
 }
 
+// --- Resize handle ---
+
+function ResizeHandle({
+  onDragStart,
+  onDrag,
+}: {
+  onDragStart: () => void;
+  onDrag: (deltaY: number) => void;
+}) {
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+    onDragStart();
+
+    const onMove = (ev: PointerEvent) => {
+      onDrag(ev.clientY - startY);
+    };
+
+    const onUp = () => {
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
+    };
+
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
+  };
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      className="group flex h-2 shrink-0 cursor-row-resize items-center justify-center border-y border-border hover:bg-accent/50 transition-colors"
+    >
+      <GripHorizontal className="h-3 w-3 text-muted-foreground/50 group-hover:text-muted-foreground" />
+    </div>
+  );
+}
+
+// --- Main sidebar ---
+
 interface WorkspaceSidebarProps {
   workspace: Workspace;
   selectedFiles: string[];
   onSelectedFilesChange: (files: string[]) => void;
 }
+
+const MIN_SECTION_HEIGHT = 48;
 
 export function WorkspaceSidebar({
   workspace,
@@ -157,6 +202,44 @@ export function WorkspaceSidebar({
   onSelectedFilesChange,
 }: WorkspaceSidebarProps) {
   const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Section heights as fractions (summing to 1)
+  const [fractions, setFractions] = useState([1 / 3, 1 / 3, 1 / 3]);
+  const dragStartFracs = useRef<number[]>([]);
+
+  const handleDragStart = useCallback(
+    (handleIndex: number) => () => {
+      void handleIndex;
+      dragStartFracs.current = [...fractions];
+    },
+    [fractions],
+  );
+
+  const handleResize = useCallback(
+    (handleIndex: number) => (deltaY: number) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const totalHeight = container.clientHeight - 16;
+      if (totalHeight <= 0) return;
+
+      const start = dragStartFracs.current;
+      if (!start.length) return;
+
+      const deltaFrac = deltaY / totalHeight;
+      const newFracs = [...start];
+      newFracs[handleIndex] = start[handleIndex] + deltaFrac;
+      newFracs[handleIndex + 1] = start[handleIndex + 1] - deltaFrac;
+
+      const minFrac = MIN_SECTION_HEIGHT / totalHeight;
+      if (newFracs[handleIndex] < minFrac || newFracs[handleIndex + 1] < minFrac) {
+        return;
+      }
+
+      setFractions(newFracs);
+    },
+    [],
+  );
 
   // File tree
   const [tree, setTree] = useState<TreeEntry[]>([]);
@@ -219,118 +302,153 @@ export function WorkspaceSidebar({
   // Cron jobs
   const [cronJobs, setCronJobs] = useState<CronJobWithState[]>([]);
 
-  useEffect(() => {
+  const fetchCronJobs = useCallback(() => {
     api.cron
       .list(workspace.id)
       .then(setCronJobs)
       .catch(() => {});
   }, [workspace.id]);
 
+  useEffect(() => {
+    fetchCronJobs();
+  }, [fetchCronJobs]);
+
+  // Refresh when cron jobs change (from Cron page or agent)
+  useEffect(() => {
+    return onCronChange(fetchCronJobs);
+  }, [fetchCronJobs]);
+
   return (
     <>
-      <div className="flex h-full w-[280px] shrink-0 flex-col border-l bg-background">
-        <ScrollArea className="flex-1">
-          <div className="p-3 space-y-4">
-            {/* Files Section */}
-            <section>
-              <div className="flex items-center justify-between mb-1.5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Files
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
-                  onClick={fetchTree}
-                  disabled={treeLoading}
-                >
-                  <RefreshCw
-                    className={`h-3 w-3 ${treeLoading ? "animate-spin" : ""}`}
-                  />
-                </Button>
-              </div>
-              {tree.length === 0 ? (
-                <p className="text-xs text-muted-foreground px-1">
-                  {treeLoading ? "Loading..." : "No files yet."}
-                </p>
-              ) : (
-                <div className="space-y-0.5">
-                  {treeNodes.map((node) => (
-                    <FileTreeNode
-                      key={node.entry.path}
-                      node={node}
-                      workspaceId={workspace.id}
-                      selectedFiles={selectedFiles}
-                      onToggle={handleFileToggle}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Memory Section */}
-            <section>
-              <div className="flex items-center justify-between mb-1.5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Memory
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
-                  onClick={handleMemoryEdit}
-                >
-                  <Pencil className="h-3 w-3" />
-                </Button>
-              </div>
-              {memory ? (
-                <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-wrap px-1">
-                  {memory.slice(0, 200)}
-                  {memory.length > 200 ? "..." : ""}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground px-1">
-                  No memory saved.
-                </p>
-              )}
-            </section>
-
-            {/* Scheduled Tasks Section */}
-            <section>
-              <div className="flex items-center justify-between mb-1.5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Scheduled Tasks
-                </h3>
-              </div>
-              {cronJobs.length === 0 ? (
-                <p className="text-xs text-muted-foreground px-1">
-                  No scheduled tasks.
-                </p>
-              ) : (
-                <ul className="space-y-1">
-                  {cronJobs.map((job) => (
-                    <li key={job.id}>
-                      <button
-                        type="button"
-                        onClick={() => navigate("/cron")}
-                        className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                      >
-                        <Clock className="h-3 w-3 shrink-0" />
-                        <span className="truncate flex-1">{job.name}</span>
-                        <Badge
-                          variant={job.enabled ? "default" : "secondary"}
-                          className="text-[10px] px-1 py-0"
-                        >
-                          {job.enabled ? "Active" : "Off"}
-                        </Badge>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+      <div
+        ref={containerRef}
+        className="flex h-full w-[280px] shrink-0 flex-col border-l bg-background"
+      >
+        {/* Files Section */}
+        <div
+          className="flex flex-col min-h-0"
+          style={{ flex: `${fractions[0]} 1 0%` }}
+        >
+          <div className="flex items-center justify-between px-3 pt-2 pb-1">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Files
+            </h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={fetchTree}
+              disabled={treeLoading}
+            >
+              <RefreshCw
+                className={`h-3 w-3 ${treeLoading ? "animate-spin" : ""}`}
+              />
+            </Button>
           </div>
-        </ScrollArea>
+          <ScrollArea className="flex-1 min-h-0 px-3 pb-1">
+            {tree.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-1">
+                {treeLoading ? "Loading..." : "No files yet."}
+              </p>
+            ) : (
+              <div className="space-y-0.5">
+                {treeNodes.map((node) => (
+                  <FileTreeNode
+                    key={node.entry.path}
+                    node={node}
+                    workspaceId={workspace.id}
+                    selectedFiles={selectedFiles}
+                    onToggle={handleFileToggle}
+                  />
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+
+        <ResizeHandle onDragStart={handleDragStart(0)} onDrag={handleResize(0)} />
+
+        {/* Memory Section */}
+        <div
+          className="flex flex-col min-h-0"
+          style={{ flex: `${fractions[1]} 1 0%` }}
+        >
+          <div className="flex items-center justify-between px-3 pt-2 pb-1">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Memory
+            </h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={handleMemoryEdit}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          </div>
+          <ScrollArea className="flex-1 min-h-0 px-3 pb-1">
+            {memory ? (
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap px-1">
+                {memory}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground px-1">
+                No memory saved.
+              </p>
+            )}
+          </ScrollArea>
+        </div>
+
+        <ResizeHandle onDragStart={handleDragStart(1)} onDrag={handleResize(1)} />
+
+        {/* Scheduled Tasks Section */}
+        <div
+          className="flex flex-col min-h-0"
+          style={{ flex: `${fractions[2]} 1 0%` }}
+        >
+          <div className="flex items-center justify-between px-3 pt-2 pb-1">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Scheduled Tasks
+            </h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={() => navigate(`/cron?create=${workspace.id}`)}
+              title="New scheduled task"
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+          <ScrollArea className="flex-1 min-h-0 px-3 pb-1">
+            {cronJobs.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-1">
+                No scheduled tasks.
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {cronJobs.map((job) => (
+                  <li key={job.id}>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/cron")}
+                      className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span className="truncate flex-1">{job.name}</span>
+                      <Badge
+                        variant={job.enabled ? "default" : "secondary"}
+                        className="text-[10px] px-1 py-0"
+                      >
+                        {job.enabled ? "Active" : "Off"}
+                      </Badge>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ScrollArea>
+        </div>
       </div>
 
       {/* Memory Edit Dialog */}

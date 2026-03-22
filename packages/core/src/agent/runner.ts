@@ -200,12 +200,13 @@ export class AgentRunner {
     return buildSystemPrompt(ctx);
   }
 
-  private createToolContext(sessionId: string, runId: string): ToolExecutionContext {
+  private createToolContext(sessionId: string, runId: string, workspaceId?: string): ToolExecutionContext {
     return {
       workspacePath: this.deps.getWorkspacePath(),
       dataDir: this.deps.getDataDir(),
       sessionId,
       runId,
+      workspaceId,
       requestPermission: async (req: PermissionRequest) => {
         if (this.deps.onPermissionRequest) {
           return this.deps.onPermissionRequest(req);
@@ -272,7 +273,7 @@ export class AgentRunner {
 
     const systemPrompt = await this.buildSystemPromptText();
     const toolDefs = this.buildToolDefinitions();
-    const toolContext = this.createToolContext(sessionId, runId);
+    const toolContext = this.createToolContext(sessionId, runId, params.workspaceId);
 
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
@@ -425,7 +426,7 @@ export class AgentRunner {
 
     const systemPrompt = await this.buildSystemPromptText();
     const toolDefs = this.buildToolDefinitions();
-    const toolContext = this.createToolContext(sessionId, runId);
+    const toolContext = this.createToolContext(sessionId, runId, params.workspaceId);
 
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
