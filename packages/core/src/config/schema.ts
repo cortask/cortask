@@ -33,7 +33,7 @@ const spendingLimitSchema = z.object({
 });
 
 const memoryConfigSchema = z.object({
-  embeddingProvider: z.enum(["local", "api"]).default("local"),
+  embeddingProvider: z.enum(["local", "openai", "google", "ollama"]).default("local"),
   embeddingModel: z.string().optional(),
 });
 

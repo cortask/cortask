@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { GatewayContext } from "../server.js";
-import { saveConfig } from "@cortask/core";
+import { saveConfig, createProvider, type ProviderId } from "@cortask/core";
 
 export function createConfigRoutes(ctx: GatewayContext): Router {
   const router = Router();
@@ -28,7 +28,7 @@ export function createConfigRoutes(ctx: GatewayContext): Router {
           period?: "daily" | "weekly" | "monthly";
         };
         memory?: {
-          embeddingProvider?: "local" | "api";
+          embeddingProvider?: "local" | "openai" | "google" | "ollama";
           embeddingModel?: string;
         };
       };
@@ -90,6 +90,60 @@ export function createConfigRoutes(ctx: GatewayContext): Router {
       });
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/config/memory/test-embedding — test embedding provider connection
+  router.post("/memory/test-embedding", async (req, res) => {
+    try {
+      const { provider, apiKey, model } = req.body as {
+        provider: string;
+        apiKey?: string;
+        model?: string;
+      };
+
+      if (provider === "local") {
+        // Local embedding doesn't need a connection test — just confirm it's selected
+        res.json({ success: true, message: "Local embeddings use on-device model. No API connection needed.", dimensions: null });
+        return;
+      }
+
+      const providerMap: Record<string, { id: ProviderId; credKey: string; defaultModel: string }> = {
+        openai: { id: "openai" as ProviderId, credKey: "provider.openai.apiKey", defaultModel: "text-embedding-3-small" },
+        google: { id: "google" as ProviderId, credKey: "provider.google.apiKey", defaultModel: "text-embedding-004" },
+        ollama: { id: "ollama" as ProviderId, credKey: "provider.ollama.host", defaultModel: "nomic-embed-text" },
+      };
+
+      const providerInfo = providerMap[provider];
+      if (!providerInfo) {
+        res.status(400).json({ success: false, error: `Unknown embedding provider: ${provider}` });
+        return;
+      }
+
+      // Use provided API key or fall back to stored credential
+      const key = apiKey || await ctx.credentialStore.get(providerInfo.credKey);
+      if (!key) {
+        res.status(400).json({ success: false, error: "No API key configured. Add one in the AI Providers tab or enter it above." });
+        return;
+      }
+
+      const llmProvider = createProvider(providerInfo.id, key);
+      const embeddingModel = model || providerInfo.defaultModel;
+      const result = await llmProvider.embed({
+        model: embeddingModel,
+        inputs: ["test"],
+      });
+
+      res.json({
+        success: true,
+        message: `Connected successfully. Model: ${embeddingModel}`,
+        dimensions: result.embeddings[0]?.length ?? null,
+      });
+    } catch (err) {
+      res.status(500).json({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   });
 

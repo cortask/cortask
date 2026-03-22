@@ -135,6 +135,10 @@ export function SettingsPage() {
   // Separate summary for spending limit progress (always follows the configured limit period)
   const [limitUsage, setLimitUsage] = useState<UsageSummary | null>(null);
 
+  // Embedding test state
+  const [embeddingApiKey, setEmbeddingApiKey] = useState("");
+  const [embeddingTestStatus, setEmbeddingTestStatus] = useState<{ loading: boolean; result?: { success: boolean; message?: string; error?: string; dimensions?: number | null } }>({ loading: false });
+
   // Updater state
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ status: "idle" });
   const [appVersion, setAppVersion] = useState<string>("unknown");
@@ -1330,7 +1334,32 @@ export function SettingsPage() {
           )}
 
           {/* ─── Memory Settings ─── */}
-          {activeTab === "memory" && configDraft && (
+          {activeTab === "memory" && configDraft && (() => {
+            const embProvider = configDraft.memory?.embeddingProvider ?? "local";
+            const embeddingProviders = [
+              { id: "local", name: "Local (Recommended)", description: "Uses embeddinggemma-300m (~300MB). Runs on your machine — no API calls. Downloaded automatically on first use.", defaultModel: "" },
+              { id: "openai", name: "OpenAI Embeddings", description: "Fast, high-quality embeddings via OpenAI API.", defaultModel: "text-embedding-3-small" },
+              { id: "google", name: "Google Embeddings", description: "Embeddings via Google's Gemini API.", defaultModel: "text-embedding-004" },
+              { id: "ollama", name: "Ollama Embeddings", description: "Local Ollama server with embedding models like nomic-embed-text.", defaultModel: "nomic-embed-text" },
+            ];
+            const selectedEmb = embeddingProviders.find((p) => p.id === embProvider) ?? embeddingProviders[0];
+            const isApiProvider = embProvider !== "local";
+
+            const handleTestEmbedding = async () => {
+              setEmbeddingTestStatus({ loading: true });
+              try {
+                const result = await api.config.testEmbedding(
+                  embProvider,
+                  embeddingApiKey || undefined,
+                  configDraft.memory?.embeddingModel || undefined,
+                );
+                setEmbeddingTestStatus({ loading: false, result });
+              } catch (err) {
+                setEmbeddingTestStatus({ loading: false, result: { success: false, error: err instanceof Error ? err.message : String(err) } });
+              }
+            };
+
+            return (
             <>
               <div className="flex items-center justify-between">
                 <div>
@@ -1351,33 +1380,96 @@ export function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Select
-                    value={configDraft.memory?.embeddingProvider ?? "local"}
-                    onValueChange={(v) => updateDraft("memory.embeddingProvider", v)}
+                    value={embProvider}
+                    onValueChange={(v) => {
+                      updateDraft("memory.embeddingProvider", v);
+                      // Reset model to default for new provider
+                      const prov = embeddingProviders.find((p) => p.id === v);
+                      updateDraft("memory.embeddingModel", prov?.defaultModel || "");
+                      setEmbeddingTestStatus({ loading: false });
+                      setEmbeddingApiKey("");
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="local">Local (Recommended)</SelectItem>
-                      <SelectItem value="api">API (uses configured AI provider)</SelectItem>
+                      {embeddingProviders.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
 
-                  {(configDraft.memory?.embeddingProvider ?? "local") === "local" ? (
-                    <p className="text-xs text-muted-foreground">
-                      Uses a local embedding model (embeddinggemma-300m, ~300MB). Runs entirely on your machine — no API calls needed.
-                      The model is downloaded automatically on first use.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Uses your configured AI provider's embedding API. Note: Anthropic does not offer an embedding API — use OpenAI, Google, or Ollama instead.
-                    </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedEmb.description}
+                  </p>
+
+                  {isApiProvider && (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-xs">
+                          {embProvider === "ollama" ? "Host URL" : "API Key"} (optional — uses saved credential if empty)
+                        </Label>
+                        <Input
+                          type={embProvider === "ollama" ? "text" : "password"}
+                          value={embeddingApiKey}
+                          onChange={(e) => setEmbeddingApiKey(e.target.value)}
+                          placeholder={embProvider === "ollama" ? "http://127.0.0.1:11434" : "sk-..."}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs">Embedding Model</Label>
+                        <Input
+                          value={configDraft.memory?.embeddingModel ?? selectedEmb.defaultModel}
+                          onChange={(e) => updateDraft("memory.embeddingModel", e.target.value)}
+                          placeholder={selectedEmb.defaultModel}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleTestEmbedding}
+                          disabled={embeddingTestStatus.loading}
+                        >
+                          {embeddingTestStatus.loading ? (
+                            <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                          ) : (
+                            <FlaskConical className="mr-1.5 h-3 w-3" />
+                          )}
+                          Test Connection
+                        </Button>
+
+                        {embeddingTestStatus.result && (
+                          <div className="flex items-center gap-1.5 text-xs">
+                            {embeddingTestStatus.result.success ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                <span className="text-green-600">
+                                  {embeddingTestStatus.result.message}
+                                  {embeddingTestStatus.result.dimensions != null && ` (${embeddingTestStatus.result.dimensions}d)`}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                                <span className="text-red-600">{embeddingTestStatus.result.error}</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
 
                   <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-500" />
                     <p className="text-xs text-muted-foreground">
-                      Changing the embedding provider will make existing embeddings incompatible. The embedding cache will be cleared, and memories will be re-embedded on next search.
+                      Changing the embedding provider will clear the embedding cache. Existing memories will be re-embedded on next search.
                     </p>
                   </div>
                 </CardContent>
@@ -1396,7 +1488,8 @@ export function SettingsPage() {
                 </CardContent>
               </Card>
             </>
-          )}
+          );
+          })()}
 
           {/* ─── Server Settings ─── */}
           {activeTab === "server" && configDraft && (

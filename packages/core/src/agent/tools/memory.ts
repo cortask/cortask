@@ -5,6 +5,7 @@ import type { ToolHandler, ToolExecutionContext } from "../types.js";
 import type { ToolResult } from "../../providers/types.js";
 
 const CORTASK_DIR = ".cortask";
+const MEMORY_FILE_WARNING_LINES = 200;
 
 function getMemoryPath(
   scope: string,
@@ -168,9 +169,14 @@ export const memoryAppendTool: ToolHandler = {
       }
     }
 
+    const lineCount = updated.split("\n").length;
+    const warning = lineCount > MEMORY_FILE_WARNING_LINES
+      ? ` Warning: memory.md is now ${lineCount} lines. Consider using memory_save to consolidate and rewrite it as a concise summary.`
+      : "";
+
     return {
       toolCallId: "",
-      content: `Note appended to ${scope} memory.`,
+      content: `Note appended to ${scope} memory.${warning}`,
     };
   },
 };

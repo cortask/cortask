@@ -197,6 +197,14 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+    testEmbedding: (provider: string, apiKey?: string, model?: string) =>
+      request<{ success: boolean; message?: string; error?: string; dimensions?: number | null }>(
+        "/config/memory/test-embedding",
+        {
+          method: "POST",
+          body: JSON.stringify({ provider, apiKey, model }),
+        },
+      ),
   },
 
   usage: {
@@ -411,7 +419,7 @@ export interface AppConfig {
     period: "daily" | "weekly" | "monthly";
   };
   memory?: {
-    embeddingProvider: "local" | "api";
+    embeddingProvider: "local" | "openai" | "google" | "ollama";
     embeddingModel?: string;
   };
   server: {
