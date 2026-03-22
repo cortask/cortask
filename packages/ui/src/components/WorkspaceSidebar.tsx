@@ -493,14 +493,13 @@ export function WorkspaceSidebar({
                   </li>
                 ))}
               </ul>
-            ) : memory ? (
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap px-1">
-                {memory}
-              </p>
             ) : (
-              <p className="text-xs text-muted-foreground px-1">
-                No memory saved.
-              </p>
+              <div className="flex flex-col items-center justify-center gap-1 py-4 text-center">
+                <Brain className="h-5 w-5 text-muted-foreground/40" />
+                <p className="text-xs text-muted-foreground/60">
+                  No memories yet. The agent will save memories as you chat.
+                </p>
+              </div>
             )}
           </ScrollArea>
         </div>

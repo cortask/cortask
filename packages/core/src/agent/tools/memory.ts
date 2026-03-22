@@ -92,24 +92,6 @@ export const memorySaveTool: ToolHandler = {
     await fs.mkdir(path.dirname(memoryPath), { recursive: true });
     await fs.writeFile(memoryPath, content, "utf-8");
 
-    // Also index into structured memory DB if available
-    if (context.memoryManager && scope === "project") {
-      try {
-        await context.memoryManager.index([
-          {
-            id: crypto.randomUUID(),
-            content,
-            source: "agent",
-            sessionId: context.sessionId,
-            createdAt: new Date().toISOString(),
-            metadata: { tool: "memory_save" },
-          },
-        ]);
-      } catch {
-        // DB indexing failed, file save succeeded — not critical
-      }
-    }
-
     return {
       toolCallId: "",
       content: `${scope === "global" ? "Global" : "Project"} memory saved (${content.length} chars)`,
