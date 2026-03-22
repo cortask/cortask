@@ -1245,16 +1245,6 @@ function SkillCard({
                 {skill.description}
             </p>
 
-            {/* Green convex shine at bottom for active skills */}
-            {skill.eligible && (
-                <div
-                    className="pointer-events-none absolute -bottom-10 left-1/2 -translate-x-1/2 h-16 w-3/4 rounded-[50%]"
-                    style={{
-                        background:
-                            "radial-gradient(ellipse at center, rgba(74, 222, 128, 0.45) 0%, rgba(74, 222, 128, 0.15) 40%, transparent 70%)",
-                    }}
-                />
-            )}
         </button>
     );
 }

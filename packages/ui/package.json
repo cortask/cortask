@@ -45,6 +45,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@tailwindcss/typography": "^0.5.19",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

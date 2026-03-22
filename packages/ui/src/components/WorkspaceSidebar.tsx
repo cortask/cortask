@@ -151,16 +151,16 @@ function FileTreeNode({
         <ContextMenuTrigger asChild>
           <div>
             <Collapsible open={open} onOpenChange={setOpen}>
-              <CollapsibleTrigger className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              <CollapsibleTrigger className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">
                 {open ? (
                   <ChevronDown className="h-3 w-3 shrink-0" />
                 ) : (
                   <ChevronRight className="h-3 w-3 shrink-0" />
                 )}
                 {open ? (
-                  <FolderOpen className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                  <FolderOpen className="h-3.5 w-3.5 shrink-0 text-blue-400" />
                 ) : (
-                  <Folder className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                  <Folder className="h-3.5 w-3.5 shrink-0 text-blue-400" />
                 )}
                 <span className="truncate">{node.entry.name}</span>
               </CollapsibleTrigger>
@@ -191,7 +191,7 @@ function FileTreeNode({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className={`group flex items-center gap-1 rounded px-1 py-0.5 text-xs cursor-pointer ${
+          className={`group flex items-center gap-1.5 rounded px-1.5 py-1 text-sm cursor-pointer ${
             isSelected
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
@@ -514,7 +514,7 @@ export function WorkspaceSidebar({
           </div>
           <ScrollArea className="flex-1 min-h-0 px-3 pb-1">
             {tree.length === 0 ? (
-              <p className="text-xs text-muted-foreground px-1">
+              <p className="text-sm text-muted-foreground px-1">
                 {treeLoading ? "Loading..." : "No files yet."}
               </p>
             ) : (
@@ -563,7 +563,7 @@ export function WorkspaceSidebar({
                 value={memoryQuery}
                 onChange={(e) => setMemoryQuery(e.target.value)}
                 placeholder="Search memories..."
-                className="h-7 pl-7 text-xs"
+                className="h-7 pl-7 text-sm"
               />
             </div>
           </div>
@@ -576,7 +576,7 @@ export function WorkspaceSidebar({
                 <ul className="space-y-1.5">
                   {memoryResults.map((r) => (
                     <li key={r.entry.id} className="rounded border border-border/50 px-2 py-1.5">
-                      <p className="text-xs text-foreground line-clamp-3">
+                      <p className="text-sm text-foreground line-clamp-3">
                         {r.entry.content}
                       </p>
                       <div className="mt-1 flex items-center gap-1.5">
@@ -594,7 +594,7 @@ export function WorkspaceSidebar({
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-muted-foreground px-1">No results found.</p>
+                <p className="text-sm text-muted-foreground px-1">No results found.</p>
               )
             ) : memoryEntries.length > 0 ? (
               // Recent entries
@@ -603,7 +603,7 @@ export function WorkspaceSidebar({
                   <li key={entry.id} className="flex items-start gap-1.5 px-1">
                     <Brain className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/60" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs text-muted-foreground line-clamp-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2">
                         {entry.content}
                       </p>
                       <span className="text-[10px] text-muted-foreground/60">
@@ -616,7 +616,7 @@ export function WorkspaceSidebar({
             ) : (
               <div className="flex flex-col items-center justify-center gap-1 py-4 text-center">
                 <Brain className="h-5 w-5 text-muted-foreground/40" />
-                <p className="text-xs text-muted-foreground/60">
+                <p className="text-sm text-muted-foreground/60">
                   No memories yet. The agent will save memories as you chat.
                 </p>
               </div>
@@ -647,7 +647,7 @@ export function WorkspaceSidebar({
           </div>
           <ScrollArea className="flex-1 min-h-0 px-3 pb-1">
             {cronJobs.length === 0 ? (
-              <p className="text-xs text-muted-foreground px-1">
+              <p className="text-sm text-muted-foreground px-1">
                 No scheduled tasks.
               </p>
             ) : (
@@ -657,7 +657,7 @@ export function WorkspaceSidebar({
                     <button
                       type="button"
                       onClick={() => navigate("/cron")}
-                      className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     >
                       <Clock className="h-3 w-3 shrink-0" />
                       <span className="truncate flex-1">{job.name}</span>
