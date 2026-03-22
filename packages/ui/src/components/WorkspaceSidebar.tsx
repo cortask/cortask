@@ -44,6 +44,7 @@ import {
   FolderOpen,
   File,
   Eye,
+  MessageSquarePlus,
   RefreshCw,
   Clock,
   Pencil,
@@ -107,7 +108,9 @@ function FileTreeNode({
   onDelete: (path: string, name: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const preview = usePreviewStore((s) => s.open);
+  const previewOpen = usePreviewStore((s) => s.open);
+  const previewClose = usePreviewStore((s) => s.close);
+  const previewItem = usePreviewStore((s) => s.item);
   const isSelected = selectedFiles.includes(node.entry.path);
   const isFile = node.entry.type === "file";
 
@@ -118,11 +121,12 @@ function FileTreeNode({
           <ContextMenuItem
             onClick={() => {
               const ext = getExtension(node.entry.name);
-              preview({
-                title: node.entry.name,
-                url: `/api/workspaces/${workspaceId}/files/${node.entry.path}`,
-                type: ext,
-              });
+              const url = `/api/workspaces/${workspaceId}/files/${node.entry.path}`;
+              if (previewItem?.url === url) {
+                previewClose();
+              } else {
+                previewOpen({ title: node.entry.name, url, type: ext });
+              }
             }}
           >
             <Eye className="h-3.5 w-3.5" />
@@ -196,25 +200,32 @@ function FileTreeNode({
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
           }`}
-          onClick={(e) => onToggle(node.entry.path, e.ctrlKey || e.metaKey)}
+          onClick={() => {
+            const ext = getExtension(node.entry.name);
+            const url = `/api/workspaces/${workspaceId}/files/${node.entry.path}`;
+            if (previewItem?.url === url) {
+              previewClose();
+            } else {
+              previewOpen({ title: node.entry.name, url, type: ext });
+            }
+          }}
         >
           <File className="h-3.5 w-3.5 shrink-0 ml-4" />
           <span className="truncate flex-1">{node.entry.name}</span>
           <button
             type="button"
-            className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded hover:bg-accent shrink-0"
+            className={`h-4 w-4 items-center justify-center rounded shrink-0 ${
+              isSelected
+                ? "flex text-accent-foreground hover:bg-accent"
+                : "hidden group-hover:flex hover:bg-accent"
+            }`}
             onClick={(e) => {
               e.stopPropagation();
-              const ext = getExtension(node.entry.name);
-              preview({
-                title: node.entry.name,
-                url: `/api/workspaces/${workspaceId}/files/${node.entry.path}`,
-                type: ext,
-              });
+              onToggle(node.entry.path, e.ctrlKey || e.metaKey);
             }}
-            title="Preview"
+            title={isSelected ? "Remove from chat" : "Add to chat"}
           >
-            <Eye className="h-3 w-3" />
+            <MessageSquarePlus className="h-3 w-3" />
           </button>
         </div>
       </ContextMenuTrigger>
@@ -273,6 +284,24 @@ interface WorkspaceSidebarProps {
 }
 
 const MIN_SECTION_HEIGHT = 48;
+const FRACTIONS_LS_KEY = "cortask:sidebar-fractions";
+
+function loadFractions(): number[] {
+  try {
+    const v = localStorage.getItem(FRACTIONS_LS_KEY);
+    if (v) {
+      const parsed = JSON.parse(v);
+      if (Array.isArray(parsed) && parsed.length === 3 && parsed.every((n: unknown) => typeof n === "number")) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return [1 / 3, 1 / 3, 1 / 3];
+}
+
+function saveFractions(fracs: number[]) {
+  try { localStorage.setItem(FRACTIONS_LS_KEY, JSON.stringify(fracs)); } catch {}
+}
 
 export function WorkspaceSidebar({
   workspace,
@@ -283,7 +312,14 @@ export function WorkspaceSidebar({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Section heights as fractions (summing to 1)
-  const [fractions, setFractions] = useState([1 / 3, 1 / 3, 1 / 3]);
+  const [fractions, setFractionsRaw] = useState(loadFractions);
+  const setFractions = useCallback((fracs: number[] | ((prev: number[]) => number[])) => {
+    setFractionsRaw((prev) => {
+      const next = typeof fracs === "function" ? fracs(prev) : fracs;
+      saveFractions(next);
+      return next;
+    });
+  }, []);
   const dragStartFracs = useRef<number[]>([]);
 
   const handleDragStart = useCallback(

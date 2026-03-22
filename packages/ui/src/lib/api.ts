@@ -70,6 +70,11 @@ export const api = {
       request<{ ok: boolean }>(`/workspaces/${id}/files/${encodeURIComponent(filePath)}`, {
         method: "DELETE",
       }),
+    writeFile: (id: string, filePath: string, content: string) =>
+      request<{ ok: boolean }>(`/workspaces/${id}/files/${filePath}`, {
+        method: "PUT",
+        body: JSON.stringify({ content }),
+      }),
   },
 
   sessions: {

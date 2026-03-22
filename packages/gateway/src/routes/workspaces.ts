@@ -306,6 +306,44 @@ export function createWorkspaceRoutes(ctx: GatewayContext): Router {
     }
   });
 
+  // Write file content
+  router.put("/:id/files/*", async (req, res) => {
+    try {
+      const workspace = await ctx.workspaceManager.get(req.params.id);
+      if (!workspace) {
+        res.status(404).json({ error: "Workspace not found" });
+        return;
+      }
+
+      const relPath = (req.params as unknown as Record<string, string>)["0"];
+      if (!relPath || relPath === "rename") {
+        res.status(400).json({ error: "File path required" });
+        return;
+      }
+
+      const fullPath = path.resolve(workspace.rootPath, relPath);
+
+      // Prevent directory traversal
+      if (!fullPath.startsWith(path.resolve(workspace.rootPath))) {
+        res.status(403).json({ error: "Path outside workspace" });
+        return;
+      }
+
+      const { content } = req.body as { content?: string };
+      if (typeof content !== "string") {
+        res.status(400).json({ error: "content string required" });
+        return;
+      }
+
+      // Ensure parent directory exists
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, content, "utf-8");
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // Serve workspace files for download
   router.get("/:id/files/*", async (req, res) => {
     try {
